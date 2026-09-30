@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내전 경매 연습판</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css?v=dev">
+<style>
+  /* 연습판: 한 사람이 모든 팀 버튼을 누름 */
+  .bids { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .bids .q { background: var(--c); color: #0b0d14; border: 0; border-radius: 8px; padding: 10px 0; font-weight: 900; font-size: 16px; }
+  .bids .direct { grid-column: 1 / -1; display: flex; gap: 6px; }
+  .bids .direct input { flex: 1; min-width: 0; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 8px; }
+  .bids .direct button { background: var(--panel-2); color: var(--c); border: 1px solid var(--c); border-radius: 8px; padding: 0 12px; font-weight: 900; }
+  .ed-fields .score-in { width: 100%; }
+  .ed-fields .rec { font-size: 11px; color: var(--muted); opacity: .6; white-space: nowrap; }
+  .ed-fields .rec.same { opacity: .3; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="home-btn" href="index.html" title="홈으로">홈</a>
+  <div class="logo">VALORANT <span>내전 경매</span></div>
+  <span class="badge">연습판 · 이 화면에서만 동작 · 서버 없음</span>
+  <div class="spacer"></div>
+  <div class="ctrl">
+    <span class="state-line" id="progress"></span>
+    <button class="btn" id="btnEdit">선수 관리</button>
+    <button class="btn" id="btnSettings">경매 설정</button>
+    <button class="btn primary" id="btnStart">경매 시작 (Space)</button>
+    <button class="btn" id="btnPause">일시정지</button>
+    <button class="btn gold" id="btnHammer">지금 마감</button>
+    <button class="btn" id="btnNext">다음 선수</button>
+    <button class="btn" id="btnUndo">결과 되돌리기</button>
+    <label class="chk"><input type="checkbox" id="autoNext"> 다음 선수 자동 시작</label>
+    <button class="btn" id="btnReset">처음부터 다시</button>
+    <button class="btn" id="btnSound">소리 켜짐</button>
+  </div>
+</header>
+
+<div class="main">
+  <section class="panel queue">
+    <h3>대기 순서</h3>
+    <ol id="queue"></ol>
+  </section>
+
+  <section class="stage" id="stage">
+    <div class="setup-box" id="setupBox">
+      <h2 id="setupTitle">연습 준비</h2>
+      <ol class="steps">
+        <li><b>선수 관리</b>에서 팀장(최대 8명, 팀 수 = 팀장 수)·티어·점수·사진·각오를 정하기</li>
+        <li><b>경매 설정</b>에서 시작 포인트·입찰 단위·팀 인원·핸디캡·점수표 정하기</li>
+        <li>경매 순서를 <b>무작위로 뽑거나</b> <b>직접 정하기</b></li>
+      </ol>
+      <div class="row">
+        <button class="btn big" id="btnEdit2">① 선수 관리</button>
+        <button class="btn big" id="btnSettings2">② 경매 설정</button>
+        <button class="btn big" id="btnOrder">③ 순서 직접 정하기</button>
+        <button class="btn primary big" id="btnDraw">③ 순서 무작위로 뽑기</button>
+      </div>
+    </div>
+    <div class="result-box" id="resultBox" hidden>
+      <div class="result-head"><h2>경매 <span>결과</span></h2><button class="btn big" id="btnReveal">결과 발표 다시 보기</button><button class="btn gold big" id="btnXlsx">엑셀로 내려받기</button><button class="btn big" id="btnPng">이미지로 저장</button><span class="state-line" id="resultNote"></span></div>
+      <div id="resultBody"></div>
+    </div>
+    <div id="lotLeft">
+      <div class="card-label">NOW ON AUCTION</div>
+      <div class="p-top">
+        <div id="pPhoto"></div>
+        <div>
+          <div class="p-name" data-fit><span id="pGrade"></span><span id="pName">-</span></div>
+          <span class="p-pos" id="pPos">-</span>
+          <div class="p-agents" id="pAgents"></div>
+        </div>
+      </div>
+      <div class="p-motto" id="pMotto"></div>
+      <div class="p-tiers">
+        <div><small>최고 티어</small><b id="pPeak">-</b></div>
+        <div><small>현재 티어</small><b id="pCur">-</b></div>
+        <div class="score"><small>티어 점수</small><b id="pScore">-</b></div>
+      </div>
+      <div class="p-unsold" id="pUnsold"></div>
+    </div>
+    <div class="bidbox" id="lotRight">
+      <div class="bid-now">
+        <small>현재 최고가</small>
+        <div class="bid-amount" id="bidAmount">0</div>
+        <div class="bid-leader" id="bidLeader" data-fit>아직 입찰 없음</div>
+      </div>
+      <div class="timer">
+        <small>남은 시간</small>
+        <div><span class="timer-num" id="timerNum">-</span><span class="timer-plus" id="timerPlus">+5</span></div>
+        <div class="bar"><i id="timerBar"></i></div>
+      </div>
+      <div class="state-line" id="stateLine"></div>
+    </div>
+  </section>
+
+  <section class="panel log">
+    <h3>진행 기록</h3>
+    <ul id="log"></ul>
+  </section>
+</div>
+
+<section class="teams" id="teams"></section>
+
+<!-- 경매 설정 -->
+<div class="overlay" id="settingsOverlay">
+  <div class="links">
+    <h2>경매 설정 (연습판)</h2>
+    <p id="settingsNote"></p>
+    <div class="set-grid">
+      <label>시작 포인트<input type="number" id="cfStart" min="10" step="1"></label>
+      <label>입찰 단위<input type="number" id="cfStep" min="1" step="1"></label>
+      <label>팀 인원 (팀장 포함)<input type="number" id="cfSize" min="1" max="12" step="1"></label>
+      <label>빈자리 1칸당 남길 포인트<input type="number" id="cfReserve" min="0" step="1"></label>
+    </div>
+    <h3 class="set-h">시간 (언제든 바꿀 수 있어요, 다음 선수부터 적용)</h3>
+    <div class="set-grid">
+      <label>선수마다 처음 시간(초)<input type="number" id="cfStartSec" min="3" max="120"></label>
+      <label>입찰할 때마다 늘어나는 시간(초)<input type="number" id="cfAddSec" min="1" max="60"></label>
+      <label>최대 시간(초)<input type="number" id="cfMaxSec" min="3" max="120"></label>
+    </div>
+    <h3 class="set-h">팀장 핸디캡 (시작 포인트에서 깎기)</h3>
+    <div class="set-grid" id="cfHandicaps"></div>
+    <h3 class="set-h">티어 점수 계산</h3>
+    <div class="weight">
+      <label>최고 티어 비율 <b id="cfWeightLabel">50%</b><input type="range" id="cfWeight" min="0" max="100" step="5"></label>
+      <div class="calc" id="cfExample"></div>
+    </div>
+    <div class="tier-grid" id="cfTiers"></div>
+    <div><button class="btn" id="btnTierDefault" type="button">기본 점수표로 (아이언1 = 1점 … 레디언트 = 25점)</button></div>
+    <div class="draw-ctrl"><button class="btn" id="btnSettingsClose">닫기</button><button class="btn primary big" id="btnSettingsSave">저장</button></div>
+  </div>
+</div>
+
+<!-- 순서 직접 정하기 -->
+<div class="overlay" id="orderOverlay">
+  <div class="links">
+    <h2>경매 순서 직접 정하기</h2>
+    <p>▲▼로 순서를 바꾸세요. 위에서부터 차례로 경매에 올라와요.</p>
+    <ol class="order-edit" id="orderEdit"></ol>
+    <div class="draw-ctrl"><button class="btn" id="btnOrderClose">닫기</button><button class="btn" id="btnOrderShuffle">무작위로 섞기</button><button class="btn primary big" id="btnOrderSave">이 순서로 확정</button></div>
+  </div>
+</div>
+
+<!-- 경매 순서 뽑기 -->
+<div class="overlay" id="drawOverlay">
+  <div class="draw">
+    <h2>경매 순서 <span>추첨</span></h2>
+    <div class="roulette" id="roulette">
+      <div class="pick-no" id="rNo">1번</div>
+      <div id="rPhoto"></div>
+      <div class="r-name" id="rName" data-fit>-</div>
+      <div class="r-sub" id="rSub"></div>
+    </div>
+    <ol class="order-list" id="orderList"></ol>
+    <div class="draw-ctrl">
+      <button class="btn" id="btnSkipDraw">건너뛰기</button>
+      <button class="btn primary big" id="btnDrawDone" disabled>이 순서로 경매 시작</button>
+    </div>
+  </div>
+</div>
+
+<!-- 선수 관리 -->
+<div class="overlay" id="editOverlay">
+  <div class="editor">
+    <div class="editor-head">
+      <h2>선수 관리</h2>
+      <span class="cap-count" id="capCount"></span>
+      <div class="spacer"></div>
+      <button class="btn" id="btnEdSplit">5명 단위로 맞추기 (늦게 추가한 선수 대기)</button>
+      <button class="btn" id="btnEdAdd">선수 추가</button>
+      <button class="btn" id="btnEdDefault">기본값으로 되돌리기</button>
+      <button class="btn" id="btnEdCancel">닫기</button>
+      <button class="btn primary" id="btnEdSave">저장</button>
+    </div>
+    <div class="ed-grid" id="edGrid"></div>
+  </div>
+</div>
+
+<div class="flash" id="flash"><div class="flash-inner"><div id="flashPhoto"></div><div class="flash-title" id="flashTitle">SOLD</div><div class="flash-sub" id="flashSub" data-fit></div></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js?v=dev"></script>
+<script src="common.js?v=dev"></script>
+<script>
+/* =====================================================================
+   연습판 — 온라인 경매와 같은 규칙·점수 계산(common.js)을 이 화면 안에서만 돌림
+   (서버가 하는 판정: 빈자리 몫, 입찰 단위, 시간 +5초/최대 30초, 유찰 2번이면 무작위 배정, 핸디캡)
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const PROFILE_KEY = "valo-auction-profiles-v1", PRACTICE_CFG_KEY = "valo-practice-config-v1";
+let P = null, profiles = [], lastSeq = 0;
+
+function loadCfg() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(PRACTICE_CFG_KEY) || "{}") || {}; } catch (e) { /* 기본값 */ }
+  return { ...CONFIG, tierScores: { ...TIER_SCORE }, handicaps: {}, ...saved };
+}
+function saveCfg(cfg) { try { localStorage.setItem(PRACTICE_CFG_KEY, JSON.stringify(cfg)); } catch (e) { /* 저장 불가여도 이번 연습은 됨 */ } }
+function loadProfiles() { return localProfiles().map((p, i) => ({ ...p, id: i })); }
+function saveProfiles(list) {
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(list)); return true; }
+  catch (e) { toast("저장 공간이 부족해요. 사진 수를 줄여 보세요."); return false; }
+}
+function log(body, kind = "") { P.events.unshift({ id: Date.now() + Math.random(), kind, body }); P.events.length = Math.min(P.events.length, 60); }
+
+/* ---------- 경매 상태 만들기 (온라인과 같은 모양) ---------- */
+function init() {
+  stopDraw();
+  profiles = loadProfiles();
+  const cfg = loadCfg();
+  const players = profiles.filter(p => !p.bench).map((p, i) => ({ id: i, grade: p.captain ? null : (p.grade || null), name: p.name, peak: p.peak, current: p.current, pos: p.pos, captain: !!p.captain,
+    motto: p.motto || "", photo: p.photo || "", score: p.score ?? null, agents: agentsOf(p), unsold: 0, team: null, price: null, how: null }));
+  const caps = players.filter(p => p.captain);
+  cfg.teamCount = caps.length;
+  const teams = caps.map((c, i) => {
+    const hc = Number(cfg.handicaps[c.name] || 0);
+    c.team = i; c.price = 0; c.how = "captain";
+    return { idx: i, name: `${c.name} 팀`, color: cfg.teamColors[i % cfg.teamColors.length], handicap: hc, points: cfg.startPoints - hc };
+  });
+  P = { status: "setup", config: cfg, teams, players, queue: players.filter(p => !p.captain).map(p => p.id), current: null,
+        bid_amount: 0, bid_team: null, ends_at: null, paused_left_ms: null, next_at: null, auto_start: $("autoNext").checked,
+        last_result: null, events: [] };
+  setScoreConfig(cfg);
+  const benchN = profiles.filter(p => p.bench).length;
+  log(`준비 — 팀장 ${teams.length}명, 경매 선수 ${P.queue.length}명, 시작 ${cfg.startPoints}P${benchN ? ` · 대기(대타) ${benchN}명` : ""}`);
+  buildTeams(); render();
+}
+
+const rosterOfP = idx => rosterOf(P, idx);
+const openOf = idx => P.config.teamSize - rosterOfP(idx).length;
+function maxBidOf(t) { const o = openOf(t.idx); return o <= 0 ? 0 : t.points - P.config.reservePerSlot * (o - 1); }
+const pById = id => P.players.find(p => p.id === id);
+const cur = () => pById(P.current);
+
+// 되돌리기용 직전 상태 (온라인 서버와 같은 방식)
+// 결과마다 직전 상태를 쌓아 두고(최근 30개) 가장 최근 것부터 되돌림
+function snapshot(pid, queue) {
+  P.undo = (P.undo || []).concat([{ player: pid, unsold: pById(pid).unsold, queue: [...queue], points: P.teams.map(t => t.points) }]).slice(-30);
+}
+function canUndo() { return !!(P.undo && P.undo.length && P.status !== "setup"); }   // 지금 선수에게 입찰이 있어도 됨 (그 입찰은 취소)
+function undoLast() {
+  if (!canUndo()) return toast("되돌릴 결과가 없어요.");
+  const u = P.undo[P.undo.length - 1], p = pById(u.player);
+  const cur = ["running", "paused"].includes(P.status) && P.bid_team !== null ? pById(P.current) : null;
+  if (!confirm(`${p.name}의 결과를 취소하고 다시 경매할까요?${cur ? `\n\n지금 경매 중인 ${cur.name}의 입찰(${P.bid_amount}P)도 취소되고, 대기 순서 맨 앞으로 돌아가요.` : ""}`)) return;
+  p.team = null; p.price = null; p.how = null; p.unsold = u.unsold;
+  P.teams.forEach((t, i) => { t.points = u.points[i]; });
+  P.queue = [...u.queue]; P.current = p.id; P.status = "ready"; P.bid_amount = 0; P.bid_team = null;
+  P.ends_at = null; P.next_at = null; P.paused_left_ms = null; P.last_result = null; P.undo.pop();
+  log(`되돌리기 — ${p.name} 결과를 취소하고 다시 경매합니다. (더 되돌릴 수 있는 결과 ${P.undo.length}개)`); render();
+}
+function nextPlayer() {
+  const anyOpen = P.teams.some(t => openOf(t.idx) > 0);
+  if (!anyOpen || !P.queue.length) {
+    P.status = "done"; P.current = null; P.bid_amount = 0; P.bid_team = null;
+    log(P.queue.length ? `모든 팀이 꽉 찼습니다. 남은 선수 ${P.queue.length}명.` : "모든 선수의 경매가 끝났습니다.", "sold");
+    return render();
+  }
+  // 그 티어를 받을 수 있는 팀이 하나뿐이면 0P 자동 배정
+  const np = pById(P.queue[0]);
+  if (np.grade) {
+    const ok = P.teams.filter(t => openOf(t.idx) > 0 && !hasGrade(P, t.idx, np.grade));
+    if (ok.length === 1) {
+      snapshot(np.id, P.queue.slice(1));
+      P.queue.shift(); P.current = np.id; np.team = ok[0].idx; np.price = 0; np.how = "auto";
+      P.bid_amount = 0; P.bid_team = null; P.ends_at = null; P.paused_left_ms = null;
+      P.last_result = { kind: "auto", player: np.id, team: ok[0].idx, seq: ++lastSeq };
+      P.status = "result"; P.next_at = Date.now() + P.config.resultShowMs;
+      log(`${np.name} → ${ok[0].name} 자동 배정 (${np.grade}티어를 받을 수 있는 팀이 하나뿐, 0P)`, "sold");
+      SFX.random(); flashResult(P); return render();
+    }
+  }
+  P.current = P.queue.shift(); P.bid_amount = 0; P.bid_team = null; P.next_at = null; P.paused_left_ms = null;
+  SFX.lot();
+  if (P.auto_start) { P.status = "running"; P.ends_at = Date.now() + P.config.startSeconds * 1000; log(`${cur().name} 경매 시작 (${P.config.startSeconds}초)`); }
+  else { P.status = "ready"; P.ends_at = null; }
+  render();
+}
+
+function startOrResume() {
+  if (P.status === "ready") { P.status = "running"; P.ends_at = Date.now() + P.config.startSeconds * 1000; log(`${cur().name} 경매 시작 (${P.config.startSeconds}초)`); SFX.start(); }
+  else if (P.status === "paused") { P.status = "running"; P.ends_at = Date.now() + P.paused_left_ms; P.paused_left_ms = null; log("다시 진행"); }
+  render();
+}
+function pause() {
+  if (P.status !== "running") return;
+  P.paused_left_ms = Math.max(0, P.ends_at - Date.now()); P.status = "paused"; P.ends_at = null; log("일시정지"); SFX.pause(); render();
+}
+
+// 입찰 판정 (온라인 서버와 같은 순서·같은 문구)
+function placeBid(idx, amount) {
+  const t = P.teams[idx], c = P.config, open = openOf(idx), reserve = c.reservePerSlot * Math.max(open - 1, 0);
+  let why = null;
+  if (P.status !== "running") why = "경매 진행 중이 아니에요.";
+  else if (Date.now() >= P.ends_at) why = "시간이 끝났어요.";
+  else if (P.bid_team === idx) why = "이미 우리 팀이 최고가예요.";
+  else if (!Number.isInteger(amount) || amount < P.bid_amount + c.bidStep) why = `최소 ${P.bid_amount + c.bidStep}P부터 입찰할 수 있어요.`;
+  else if (amount % c.bidStep !== 0) why = `${c.bidStep}P 단위로만 입찰할 수 있어요.`;
+  else if (open <= 0) why = "팀 인원이 꽉 찼어요.";
+  else if (hasGrade(P, idx, cur().grade)) why = `이미 우리 팀에 ${cur().grade}티어 선수가 있어요.`;
+  else if (amount > t.points) why = "포인트가 부족해요.";
+  else if (amount > t.points - reserve) why = `빈자리 ${open - 1}칸 몫 ${reserve}P는 남겨야 해요.`;
+  if (why) { toast(`${t.name}: ${why}`); return; }
+  const now = Date.now(), before = Math.max(0, P.ends_at - now);
+  const after = Math.min(before + c.bidAddSeconds * 1000, c.maxSeconds * 1000);
+  P.ends_at = now + after; P.bid_amount = amount; P.bid_team = idx;
+  SFX.bid();
+  log(`${t.name} ${amount}P 입찰 · 시간 ${(before / 1000).toFixed(1)}초 → ${(after / 1000).toFixed(1)}초`, "bid");
+  render();
+  bumpEl($("bidAmount"), "bump");
+  const plus = $("timerPlus"); plus.textContent = `+${((after - before) / 1000).toFixed(1)}`; bumpEl(plus, "show");
+  bumpEl(document.querySelector(`.team[data-id="${idx}"]`), "pulse");
+}
+
+function finishLot() {
+  if (P.status !== "running" && P.status !== "paused") return;
+  const p = cur();
+  snapshot(p.id, P.queue);
+  if (P.bid_team !== null) {
+    const t = P.teams[P.bid_team];
+    t.points -= P.bid_amount; p.team = t.idx; p.price = P.bid_amount; p.how = "bid";
+    log(`낙찰! ${p.name} → ${t.name} (${P.bid_amount}P)`, "sold");
+    P.last_result = { kind: "sold", player: p.id, team: t.idx, price: P.bid_amount, seq: ++lastSeq };
+  } else {
+    p.unsold++;
+    if (p.unsold >= P.config.maxUnsold) {
+      const open = P.teams.filter(t => openOf(t.idx) > 0 && !hasGrade(P, t.idx, p.grade));
+      if (open.length) {
+        const t = open[Math.floor(Math.random() * open.length)];
+        p.team = t.idx; p.price = 0; p.how = "random";
+        log(`${p.name} ${p.unsold}번째 유찰 → ${t.name}에 무작위 배정 (0P)`, "unsold");
+        P.last_result = { kind: "random", player: p.id, team: t.idx, seq: ++lastSeq };
+      } else { log(`${p.name} 유찰 — 빈자리가 있는 팀이 없어요`, "unsold"); P.last_result = { kind: "unsold", player: p.id, seq: ++lastSeq }; }
+    } else {
+      P.queue.push(p.id);
+      log(`유찰 — ${p.name} 순서 맨 뒤로 (${p.unsold}번째 유찰)`, "unsold");
+      P.last_result = { kind: "unsold", player: p.id, seq: ++lastSeq };
+    }
+  }
+  P.status = "result"; P.ends_at = null; P.paused_left_ms = null; P.next_at = Date.now() + P.config.resultShowMs;
+  ({ sold: SFX.sold, random: SFX.random, unsold: SFX.unsold })[P.last_result.kind]();
+  flashResult(P); render();
+}
+
+// 시간 확인 (온라인의 tick 과 같은 일)
+setInterval(() => {
+  if (!P) return;
+  if (P.status === "running" && Date.now() >= P.ends_at) finishLot();
+  else if (P.status === "result" && Date.now() >= P.next_at) nextPlayer();
+}, 100);
+
+/* ---------- 순서: 무작위 추첨 / 직접 정하기 ---------- */
+let drawOrder = [], drawIndex = 0, drawTimer = null;
+function canOrder() {
+  if (P.status !== "setup") { toast("준비 단계에서만 순서를 정할 수 있어요."); return false; }
+  if (!P.teams.length) { toast("팀장을 1명 이상 정해 주세요. (선수 관리에서 ‘팀장’ 체크)"); return false; }
+  if (!P.queue.length) { toast("경매에 올릴 선수가 없어요."); return false; }
+  return true;
+}
+function startDraw() {
+  if (!canOrder()) return;
+  drawOrder = [...P.queue];
+  for (let i = drawOrder.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [drawOrder[i], drawOrder[j]] = [drawOrder[j], drawOrder[i]]; }
+  drawIndex = 0;
+  $("orderList").innerHTML = ""; $("btnDrawDone").disabled = true; $("btnSkipDraw").disabled = false;
+  $("drawOverlay").classList.add("show");
+  stepDraw();
+}
+function showRoulette(p, locked, no) {
+  $("roulette").classList.toggle("locked", locked);
+  $("rNo").textContent = `${no}번`; $("rPhoto").innerHTML = avatar(p, 150); $("rName").textContent = p.name;
+  $("rSub").textContent = locked ? `${p.grade ? p.grade + "티어 · " : ""}${p.pos} · ${p.peak} / ${p.current}` : "";
+}
+function appendOrder(i, id) {
+  const p = pById(id), li = document.createElement("li");
+  li.innerHTML = `<b>${i + 1}</b>${avatar(p, 32)}<span>${gradeBadge(p, "sm")}${esc(p.name)}</span>`;
+  $("orderList").appendChild(li);
+}
+function stepDraw() {
+  if (drawIndex >= drawOrder.length) return finishDraw();
+  const remaining = drawOrder.slice(drawIndex);
+  let spins = 0; const total = remaining.length > 1 ? 7 : 0;
+  const spin = () => {
+    if (spins < total) { showRoulette(pById(remaining[Math.floor(Math.random() * remaining.length)]), false, drawIndex + 1); SFX.spin(); spins++; drawTimer = setTimeout(spin, 35 + spins * 12); }
+    else { showRoulette(pById(drawOrder[drawIndex]), true, drawIndex + 1); SFX.lock(); appendOrder(drawIndex, drawOrder[drawIndex]); drawIndex++; drawTimer = setTimeout(stepDraw, 380); }
+  };
+  spin();
+}
+function skipDraw() { clearTimeout(drawTimer); while (drawIndex < drawOrder.length) { appendOrder(drawIndex, drawOrder[drawIndex]); drawIndex++; } finishDraw(); }
+function finishDraw() { clearTimeout(drawTimer); $("rNo").textContent = "추첨 완료"; $("btnSkipDraw").disabled = true; $("btnDrawDone").disabled = false; }
+function stopDraw() { clearTimeout(drawTimer); $("drawOverlay").classList.remove("show"); }
+function confirmOrder(ids) { P.queue = [...ids]; log(`경매 순서 확정 — 1번 ${pById(ids[0]).name}`); nextPlayer(); }
+$("btnDraw").onclick = startDraw;
+$("btnSkipDraw").onclick = skipDraw;
+$("btnDrawDone").onclick = () => { $("drawOverlay").classList.remove("show"); confirmOrder(drawOrder); };
+
+let manualOrder = [];
+function renderOrder() {
+  $("orderEdit").innerHTML = manualOrder.map((id, i) => { const p = pById(id);
+    return `<li data-i="${i}"><span class="no">${i + 1}</span>${avatar(p, 26)}<span class="nm">${gradeBadge(p, "sm")}${esc(p.name)} <span style="color:var(--muted);font-size:12px">${esc(p.pos)} · ${playerScore(p).toFixed(1)}</span></span>
+      <button data-mv="-1" ${i === 0 ? "disabled" : ""}>▲</button><button data-mv="1" ${i === manualOrder.length - 1 ? "disabled" : ""}>▼</button></li>`; }).join("");
+}
+$("btnOrder").onclick = () => { if (!canOrder()) return; manualOrder = [...P.queue]; renderOrder(); $("orderOverlay").classList.add("show"); };
+$("orderEdit").onclick = e => { const b = e.target.closest("[data-mv]"); if (!b) return; const i = Number(b.closest("[data-i]").dataset.i), j = i + Number(b.dataset.mv); [manualOrder[i], manualOrder[j]] = [manualOrder[j], manualOrder[i]]; renderOrder(); };
+$("btnOrderShuffle").onclick = () => { for (let i = manualOrder.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [manualOrder[i], manualOrder[j]] = [manualOrder[j], manualOrder[i]]; } renderOrder(); };
+$("btnOrderSave").onclick = () => { $("orderOverlay").classList.remove("show"); confirmOrder(manualOrder); };
+$("btnOrderClose").onclick = () => $("orderOverlay").classList.remove("show");
+
+/* ---------- 경매 설정 (온라인 운영자 콘솔 ‘경매 준비’와 같은 항목) ---------- */
+let cfTiers = {};
+function openSettings() {
+  const c = P.config, setup = P.status === "setup";
+  $("cfStart").value = c.startPoints; $("cfStep").value = c.bidStep; $("cfSize").value = c.teamSize; $("cfReserve").value = c.reservePerSlot;
+  $("cfStartSec").value = c.startSeconds; $("cfAddSec").value = c.bidAddSeconds; $("cfMaxSec").value = c.maxSeconds;
+  ["cfStart", "cfStep", "cfSize", "cfReserve"].forEach(id => ($(id).disabled = !setup));
+  $("settingsNote").textContent = setup ? "경매 시작 전이라 모두 바꿀 수 있어요. 이 브라우저에 저장돼요."
+    : "경매가 시작돼서 시작 포인트·입찰 단위·팀 인원·핸디캡은 잠겨 있어요. 점수표와 비율은 지금도 바꿀 수 있어요.";
+  $("cfHandicaps").innerHTML = P.teams.length ? P.teams.map(t => `<label style="color:${esc(t.color)}">${esc(t.name)}<input type="number" min="0" step="${c.bidStep}" data-team="${t.idx}" value="${t.handicap}" ${setup ? "" : "disabled"}></label>`).join("")
+    : `<div style="color:var(--muted)">팀장이 아직 없어요. 선수 관리에서 ‘팀장’을 체크하세요.</div>`;
+  cfTiers = { ...TIER_SCORE, ...(c.tierScores || {}) };
+  $("cfWeight").value = Math.round(peakWeight(c) * 100);
+  $("cfTiers").innerHTML = Object.keys(TIER_SCORE).map(t => `<label>${t}<input type="number" step="0.5" min="0" max="1000" data-tier="${t}" value="${cfTiers[t]}"></label>`).join("");
+  updateWeight();
+  $("settingsOverlay").classList.add("show");
+}
+function updateWeight() {
+  const w = Number($("cfWeight").value) / 100;
+  $("cfWeightLabel").textContent = `${Math.round(w * 100)}% (현재 티어 ${Math.round((1 - w) * 100)}%)`;
+  $("cfExample").textContent = `예: 최고 불멸 3 / 현재 초월자 2 → ${scoreFormula({ peak: "불멸 3", current: "초월자 2" }, { tierScores: cfTiers, peakWeight: w })}점`;
+}
+$("cfWeight").oninput = updateWeight;
+$("cfTiers").oninput = e => { if (e.target.dataset.tier) { cfTiers[e.target.dataset.tier] = Number(e.target.value); updateWeight(); } };
+$("btnTierDefault").onclick = () => { cfTiers = { ...TIER_SCORE }; [...$("cfTiers").querySelectorAll("input")].forEach(i => (i.value = cfTiers[i.dataset.tier])); updateWeight(); };
+$("btnSettingsSave").onclick = () => {
+  const c = P.config, setup = P.status === "setup";
+  for (const t of Object.keys(TIER_SCORE)) if (!(cfTiers[t] >= 0 && cfTiers[t] <= 1000)) return toast(`${t} 점수를 0에서 1000 사이로 적어 주세요.`);
+  const next = { ...c, tierScores: { ...cfTiers }, peakWeight: Number($("cfWeight").value) / 100 };
+  const tv = { startSeconds: +$("cfStartSec").value, bidAddSeconds: +$("cfAddSec").value, maxSeconds: +$("cfMaxSec").value };
+  if (!Object.values(tv).every(Number.isInteger) || tv.startSeconds < 3 || tv.maxSeconds > 120 || tv.bidAddSeconds < 1 || tv.bidAddSeconds > 60) return toast("시간은 처음·최대 3~120초, 늘어나는 시간 1~60초로 적어 주세요.");
+  if (tv.startSeconds > tv.maxSeconds) return toast("처음 시간은 최대 시간보다 길 수 없어요.");
+  Object.assign(next, tv);
+  if (setup) {
+    const v = { startPoints: +$("cfStart").value, bidStep: +$("cfStep").value, teamSize: +$("cfSize").value, reservePerSlot: +$("cfReserve").value };
+    if (!Object.values(v).every(Number.isInteger)) return toast("시작 포인트·입찰 단위·팀 인원·빈자리 몫은 정수로 적어 주세요.");
+    if (v.startPoints < 10 || v.bidStep < 1 || v.teamSize < 1 || v.teamSize > 12 || v.reservePerSlot < 0) return toast("값이 범위를 벗어났어요.");
+    const hcs = [...$("cfHandicaps").querySelectorAll("[data-team]")].map(i => Math.max(0, Math.floor(+i.value || 0)));
+    if (hcs.some(h => h >= v.startPoints)) return toast("핸디캡은 시작 포인트보다 작아야 해요.");
+    Object.assign(next, v);
+    next.handicaps = { ...(c.handicaps || {}) };
+    P.teams.forEach((t, i) => { t.handicap = hcs[i]; t.points = v.startPoints - hcs[i]; next.handicaps[rosterOfP(t.idx)[0].name] = hcs[i]; });
+  }
+  P.config = next; setScoreConfig(next); saveCfg(next);
+  log("경매 설정을 바꿨습니다.");
+  $("settingsOverlay").classList.remove("show");
+  buildTeams(); render(); toast("경매 설정을 저장했어요.");
+};
+$("btnSettings").onclick = openSettings; $("btnSettings2").onclick = openSettings;
+$("btnSettingsClose").onclick = () => $("settingsOverlay").classList.remove("show");
+
+/* ---------- 선수 관리: 팀장(1~8명), 티어, 점수 직접 입력, 사진, 각오 ---------- */
+let draft = [];
+function openEditor() {
+  if (P.status !== "setup") return toast("경매 중에는 고칠 수 없어요. ‘처음부터 다시’를 누른 뒤 고쳐 주세요.");
+  draft = profiles.map(p => ({ ...p })); buildEditor(); $("editOverlay").classList.add("show");
+}
+const tierOptions = sel => TIER_OPTIONS.map(t => `<option ${t === sel ? "selected" : ""}>${t}</option>`).join("");
+function buildEditor() {
+  $("edGrid").innerHTML = draft.map((p, i) => `
+    <div class="ed ${p.captain ? "captain" : ""}" data-i="${i}">
+      <div class="ed-photo"><label>${avatar(p, 84)}<input type="file" accept="image/*"></label><button type="button" data-act="clearPhoto">사진 지우기</button><button type="button" data-act="remove">선수 빼기</button></div>
+      <div class="ed-fields">
+        <input data-f="name" maxlength="16" value="${esc(p.name)}" placeholder="닉네임">
+        <div class="row2">
+          <div><small>최고 티어</small><select data-f="peak">${tierOptions(p.peak)}</select></div>
+          <div><small>현재 티어</small><select data-f="current">${tierOptions(p.current)}</select></div>
+        </div>
+        <div class="row2">
+          <div data-posfor="${i}"></div>
+          <label class="ed-cap"><input type="checkbox" data-f="captain" ${p.captain ? "checked" : ""}> 팀장</label>
+        </div>
+        <div class="row2">
+          <div><small>경매 티어</small><select data-f="grade" ${p.captain ? "disabled" : ""}><option value="">없음</option>${GRADES.map(g => `<option ${g === p.grade ? "selected" : ""}>${g}</option>`).join("")}</select> <span class="rec" data-rec></span></div>
+          <label class="ed-cap"><input type="checkbox" data-f="bench" ${p.bench ? "checked" : ""} ${p.captain ? "disabled" : ""}> 대기 (대타)</label>
+        </div>
+        <div class="row2">
+          <div><small>점수 직접 입력 (비우면 자동)</small><input class="score-in" data-f="score" type="number" step="0.1" min="0" max="1000" placeholder="${autoScore(p).toFixed(1)}" value="${p.score ?? ""}"></div>
+          <div><small>자동 점수</small><div class="calc" data-auto>${scoreFormula(p)}</div></div>
+        </div>
+        <input data-f="motto" maxlength="${CONFIG.mottoMaxLength}" value="${esc(p.motto || "")}" placeholder="각오 한마디 (${CONFIG.mottoMaxLength}자까지)">
+      </div>
+    </div>`).join("");
+  $("edGrid").querySelectorAll("[data-posfor]").forEach(el => { const d = draft[el.dataset.posfor]; mountPosPicker(el, d.pos, v => { d.pos = v; }); });   // 포지션 여러 개
+  updateCapCount();
+}
+// 추천 경매 티어 (점수 순, 참고용)를 선수 칸 옆에 흐리게
+function updateRec() {
+  const n = draft.filter(p => p.captain).length || Math.floor(draft.length / 5);
+  const it = (p, i) => ({ id: i, order: i, score: playerScore(p) });
+  const rec = recommendGrades(draft.map(it).filter(x => !draft[x.id].captain && !draft[x.id].bench), draft.map(it).filter(x => !draft[x.id].captain && draft[x.id].bench), n);
+  $("edGrid").querySelectorAll("[data-i]").forEach(el => { const r = el.querySelector("[data-rec]"), g = rec[el.dataset.i]; if (r) { r.textContent = g ? `추천 ${g}` : ""; r.classList.toggle("same", !!g && draft[el.dataset.i].grade === g); } });
+}
+function updateCapCount() {
+  updateRec();
+  const n = draft.filter(p => p.captain).length, el = $("capCount");
+  const bench = draft.filter(p => p.bench && !p.captain).length, play = draft.length - bench;
+  const cnt = GRADES.map(g => draft.filter(p => !p.captain && !p.bench && p.grade === g).length);
+  const graded = cnt.some(Boolean);
+  const ok = n >= 1 && n <= 8 && (!graded || cnt.every(x => x === n));
+  el.textContent = `팀장 ${n}명 (= 팀 ${n}개, 최대 8) · 참가 ${play}명${bench ? ` · 대기 ${bench}명` : ""}${graded ? ` · 티어 ${GRADES.map((g, i) => `${g} ${cnt[i]}`).join(" / ")}` : ""}`;
+  el.className = "cap-count " + (ok ? "good" : "bad");
+}
+$("edGrid").addEventListener("input", e => {
+  const card = e.target.closest(".ed"); if (!card) return;
+  const p = draft[card.dataset.i], f = e.target.dataset.f;
+  if (f === "captain") { p.captain = e.target.checked; if (p.captain) { p.grade = null; p.bench = false; } buildEditor(); return; }
+  else if (f === "bench") { p.bench = e.target.checked; updateCapCount(); }
+  else if (f === "grade") { p.grade = e.target.value || null; updateCapCount(); }
+  else if (f === "score") p.score = e.target.value === "" ? null : Number(e.target.value);
+  else if (f) p[f] = e.target.value;
+  if (f === "peak" || f === "current") { card.querySelector("[data-auto]").textContent = scoreFormula(p); card.querySelector('[data-f="score"]').placeholder = autoScore(p).toFixed(1); }
+  if (f === "peak" || f === "current" || f === "score") updateRec();
+});
+$("edGrid").addEventListener("change", e => {
+  if (e.target.type !== "file" || !e.target.files[0]) return;
+  const card = e.target.closest(".ed"), p = draft[card.dataset.i];
+  resizePhoto(e.target.files[0]).then(url => { p.photo = url; card.querySelector(".ed-photo label").innerHTML = `${avatar(p, 84)}<input type="file" accept="image/*">`; })
+    .catch(() => toast("사진을 읽지 못했어요."));
+});
+$("edGrid").addEventListener("click", e => {
+  const card = e.target.closest(".ed"); if (!card) return;
+  if (e.target.dataset.act === "clearPhoto") { const p = draft[card.dataset.i]; p.photo = ""; card.querySelector(".ed-photo label").innerHTML = `${avatar(p, 84)}<input type="file" accept="image/*">`; }
+  if (e.target.dataset.act === "remove") { draft.splice(Number(card.dataset.i), 1); buildEditor(); }
+});
+function resizePhoto(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = CONFIG.photoSize, side = Math.min(img.width, img.height), c = document.createElement("canvas"); c.width = c.height = s;
+      c.getContext("2d").drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, s, s);
+      URL.revokeObjectURL(url); resolve(c.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(); };
+    img.src = url;
+  });
+}
+// 5명 단위로 맞추기(늦게 추가한 선수부터 대기). 팀 수 = 전체 ÷ 5 (팀장이 그 수만큼 있어야 함). 경매 티어(A~D)는 직접 고름
+$("btnEdSplit").onclick = () => {
+  const sp = splitGrades(draft.map((p, i) => ({ id: i, captain: !!p.captain, order: i, score: playerScore(p) })), 5);
+  const caps = draft.filter(p => p.captain).length;
+  draft.forEach((p, i) => { if (p.captain) p.grade = null; p.bench = sp.bench.includes(i); });
+  buildEditor();
+  toast(caps === sp.teams ? `${draft.length}명 → ${sp.teams}팀, 대기 ${sp.bench.length}명. 경매 티어(A~D)는 선수마다 직접 골라 주세요.`
+    : `${draft.length}명이면 ${sp.teams}팀이에요. 팀장을 ${sp.teams}명으로 맞춰 주세요. (지금 ${caps}명)`);
+};
+$("btnEdAdd").onclick = () => { draft.push({ name: `새 선수 ${draft.length + 1}`, peak: "골드 1", current: "골드 1", pos: "타격대", captain: false, motto: "", photo: "", score: null }); buildEditor(); $("edGrid").lastElementChild.scrollIntoView(); };
+$("btnEdDefault").onclick = () => { if (confirm("가짜 선수 31명(6팀 + 대기 1명) 기본값으로 되돌릴까요? (저장을 눌러야 반영돼요)")) { draft = seedProfiles(); buildEditor(); } };
+$("btnEdCancel").onclick = () => $("editOverlay").classList.remove("show");
+$("btnEdSave").onclick = () => {
+  const names = draft.map(p => (p.name || "").trim());
+  if (names.some(n => !n)) return toast("닉네임이 비어 있는 선수가 있어요.");
+  if (new Set(names).size !== names.length) return toast("같은 닉네임이 두 번 있어요.");
+  if (draft.some(p => !posList(p.pos).length)) return toast("포지션을 고르지 않은 선수가 있어요.");
+  const caps = draft.filter(p => p.captain).length;
+  if (caps < 1 || caps > 8) return toast("팀장은 1명에서 8명 사이로 정해 주세요.");
+  const cnt = GRADES.map(g => draft.filter(p => !p.captain && !p.bench && p.grade === g).length);
+  if (cnt.some(Boolean)) {
+    if (draft.some(p => !p.captain && !p.bench && !p.grade)) return toast("경매 티어가 없는 선수가 있어요. 선수마다 경매 티어를 골라 주세요.");
+    if (cnt.some(x => x !== caps)) return toast(`경매 티어는 팀 수(${caps})만큼씩 있어야 해요. 지금 ${GRADES.map((g, i) => `${g} ${cnt[i]}`).join(" / ")}`);
+  }
+  if (draft.some(p => p.score != null && !(p.score >= 0 && p.score <= 1000))) return toast("점수는 0에서 1000 사이로 적어 주세요.");
+  if (!saveProfiles(draft.map(({ id, ...p }) => ({ ...p, name: p.name.trim(), motto: (p.motto || "").trim() })))) return;
+  $("editOverlay").classList.remove("show");
+  init(); toast("선수 정보를 저장했어요.");
+};
+$("btnEdit").onclick = openEditor; $("btnEdit2").onclick = openEditor;
+
+/* ---------- 화면 그리기 (온라인 진행자 화면과 같은 모양 + 팀별 입찰 버튼) ---------- */
+function buildTeams() {
+  const wrap = $("teams"); wrap.innerHTML = "";
+  wrap.style.setProperty("--tn", Math.max(1, P.teams.length));
+  wrap.classList.toggle("many", P.teams.length >= 6);
+  for (const t of P.teams) {
+    const el = document.createElement("div");
+    el.className = "team"; el.dataset.id = t.idx; el.style.setProperty("--c", t.color);
+    el.innerHTML = `
+      <div class="team-head"><div class="team-name"><span data-fit>${esc(t.name)}</span></div><div class="team-slots">빈자리 <b data-k="slots"></b></div></div>
+      <div class="team-points" data-k="points"></div>
+      <div class="team-max" data-k="max"></div>
+      <div class="team-score"><div><small>티어 점수 합계</small><b data-k="sum"></b></div><div><small>티어 점수 평균</small><b data-k="avg"></b></div></div>
+      <ul class="roster" data-k="roster"></ul>
+      <div class="bids">
+        ${CONFIG.quickBids.map(m => `<button class="q" data-q="${m}">+${m * P.config.bidStep}</button>`).join("")}
+        <div class="direct"><input type="number" inputmode="numeric" placeholder="직접 입력"><button data-direct>입찰</button></div>
+      </div>
+      <div class="why" data-k="why"></div>`;
+    el.querySelectorAll("[data-q]").forEach(b => b.onclick = () => placeBid(t.idx, P.bid_amount + Number(b.dataset.q) * P.config.bidStep));
+    const input = el.querySelector("input");
+    const submit = () => { const v = Number(input.value); if (!v) return; input.value = ""; placeBid(t.idx, v); };
+    el.querySelector("[data-direct]").onclick = submit;
+    input.onkeydown = e => { if (e.key === "Enter") submit(); };
+    wrap.appendChild(el);
+  }
+}
+
+function blockReason(t, amount) {
+  const open = openOf(t.idx), c = P.config;
+  if (P.status !== "running") return "경매 진행 중이 아님";
+  if (open <= 0) return "팀 인원이 꽉 참";
+  if (P.bid_team === t.idx) return "현재 최고가 팀";
+  if (cur() && hasGrade(P, t.idx, cur().grade)) return `이미 ${cur().grade}티어 선수가 있음`;
+  if (amount > t.points) return "포인트 부족";
+  if (amount > maxBidOf(t)) return `빈자리 ${open - 1}칸 몫 ${c.reservePerSlot * (open - 1)}P는 남겨야 함`;
+  return null;
+}
+
+function render() {
+  const s = P, c = s.config, setup = s.status === "setup";
+  $("setupBox").style.display = setup ? "" : "none";
+  $("lotLeft").style.display = setup ? "none" : "";
+  $("lotRight").style.display = setup ? "none" : "";
+  const done = s.status === "done";
+  $("resultBox").hidden = !done;
+  if (done) {
+    $("lotLeft").style.display = "none"; $("lotRight").style.display = "none";
+    const sig = JSON.stringify(s.teams) + s.players.map(x => `${x.id}:${x.team}:${x.score}:${x.peak}:${x.current}`).join();
+    if (sig !== resultSig) {                 // 결과가 바뀔 때만 다시 그림 (연출이 끊기지 않게)
+      resultSig = sig;
+      const willReveal = sawRunning && !revealed;
+      $("resultBody").innerHTML = resultHtml(s, { reveal: willReveal });   // 연출할 때는 처음부터 카드를 숨겨 둠 (깜빡임 방지)
+      if (willReveal) { revealed = true; setTimeout(() => playResultReveal($("resultBody")), (s.config.resultShowMs || 2200) + 200); }
+    }
+  } else { resultSig = ""; revealed = false; if (!setup) sawRunning = true; }   // 되돌리기로 경매가 다시 열리면 다음에 또 발표 연출
+  $("setupTitle").textContent = `팀장 ${s.teams.length}명 · 경매 선수 ${s.queue.length}명 · 시작 ${c.startPoints}P · 입찰 단위 ${c.bidStep}P`;
+  const p = s.current !== null ? cur() : null;
+  $("pPhoto").innerHTML = p ? avatar(p, 130) : "";
+  $("pName").textContent = p ? p.name : (s.status === "done" ? "경매 종료" : "-");
+  $("pName").parentElement.style.setProperty("--ns", p ? nameScale(p.name) : 1);
+  $("pGrade").innerHTML = p ? gradeBadge(p, "lg") : "";
+  $("pPos").textContent = p ? p.pos : "-";
+  $("pAgents").innerHTML = p ? agentChips(p, "lg", 26) : "";
+  $("pMotto").textContent = p && p.motto ? `“${p.motto}”` : "";
+  $("pPeak").innerHTML = p ? `${esc(p.peak)} <em>${tierPoints(p.peak)}점</em>` : "-";
+  $("pCur").innerHTML = p ? `${esc(p.current)} <em>${tierPoints(p.current)}점</em>` : "-";
+  $("pScore").textContent = p ? playerScore(p).toFixed(1) : "-";
+  $("pUnsold").textContent = p && p.unsold ? `이미 ${p.unsold}번 유찰된 선수 — 이번에도 유찰되면 빈자리 팀에 무작위 배정` : "";
+  $("bidAmount").textContent = s.bid_amount;
+  const leader = $("bidLeader");
+  if (s.bid_team !== null) { leader.textContent = `${s.teams[s.bid_team].name} 최고가`; leader.style.color = s.teams[s.bid_team].color; }
+  else { leader.textContent = "아직 입찰 없음"; leader.style.color = ""; }
+  const msg = { setup: "", ready: "‘경매 시작’을 누르면 시간이 흐릅니다.", running: `입찰할 때마다 +${c.bidAddSeconds}초 (최대 ${c.maxSeconds}초)`, paused: "일시정지 중", result: "결과 발표 중…", done: "경매 완료" };
+  $("stateLine").textContent = msg[s.status] || "";
+  $("btnEdit").disabled = !setup;
+  $("btnStart").disabled = !(s.status === "ready" || s.status === "paused");
+  $("btnStart").textContent = s.status === "paused" ? "다시 진행 (Space)" : "경매 시작 (Space)";
+  $("btnPause").disabled = s.status !== "running";
+  $("btnHammer").disabled = !(s.status === "running" || s.status === "paused");
+  $("btnNext").disabled = s.status !== "result";
+  $("btnUndo").disabled = !canUndo();
+  $("btnUndo").textContent = P.undo && P.undo.length ? `결과 되돌리기 (${P.undo.length})` : "결과 되돌리기";
+  $("progress").textContent = `자리 ${s.players.filter(x => x.team !== null).length} / ${s.teams.length * c.teamSize}`;
+  const queue = s.queue.map(pById);
+  $("queue").innerHTML = queue.length
+    ? queue.map((q, i) => `<li><span class="n">${setup ? "·" : i + 1}</span>${avatar(q, 24)}<span class="nm">${gradeBadge(q, "sm")}${esc(q.name)}</span>${q.unsold ? `<span class="tag-unsold">유찰 ${q.unsold}</span>` : ""}<span>${playerScore(q).toFixed(1)}</span></li>`).join("")
+    : `<li><span class="nm" style="color:var(--muted)">대기 선수 없음</span></li>`;
+  $("log").innerHTML = eventsHtml(s.events);
+  for (const t of s.teams) {
+    const el = document.querySelector(`.team[data-id="${t.idx}"]`); if (!el) continue;
+    const roster = rosterOfP(t.idx), { sum, avg } = teamScore(roster), open = c.teamSize - roster.length;
+    el.querySelector('[data-k="slots"]').textContent = `${open} / ${c.teamSize}`;
+    const pts = el.querySelector('[data-k="points"]'), old = pts.dataset.v;
+    pts.innerHTML = `${t.points}<small>P 남음${t.handicap ? ` · 핸디캡 ${t.handicap}` : ""}</small>`;
+    if (old !== undefined && Number(old) !== t.points) bumpEl(pts, "changed");
+    pts.dataset.v = t.points;
+    el.querySelector('[data-k="max"]').innerHTML = open > 0 ? `최대 입찰 가능 <b>${maxBidOf(t)}P</b>${open > 1 ? ` · 빈자리 몫 ${c.reservePerSlot * (open - 1)}P 보관` : ""}` : "팀 완성";
+    el.querySelector('[data-k="sum"]').textContent = sum.toFixed(1);
+    el.querySelector('[data-k="avg"]').textContent = avg === null ? "-" : avg.toFixed(1);
+    const rows = tierSlots(s, t.idx).map(({ p: r, grade }) => r ? `<li><span class="who">${avatar(r, 22)}<span data-fit="9">${gradeBadge(r, "sm")}${esc(r.name)}<span class="psc"> ${playerScore(r).toFixed(1)}</span></span></span>${
+      priceTag(r)}</li>` : `<li class="empty">${emptySlotLabel(grade)}</li>`);
+    el.querySelector('[data-k="roster"]').innerHTML = rows.join("");
+    el.classList.toggle("leading", s.bid_team === t.idx && s.status === "running");
+    let why = null, anyOk = false;
+    el.querySelectorAll("[data-q]").forEach(b => {
+      const amt = s.bid_amount + Number(b.dataset.q) * c.bidStep;
+      b.textContent = `+${Number(b.dataset.q) * c.bidStep}`;
+      const r = blockReason(t, amt); b.disabled = !!r;
+      if (!r) anyOk = true; else if (!why) why = r;
+    });
+    const dr = blockReason(t, s.bid_amount + c.bidStep);
+    el.querySelector("[data-direct]").disabled = !!dr; el.querySelector(".direct input").disabled = !!dr;
+    el.querySelector('[data-k="why"]').textContent = s.status === "running" && !anyOk && why ? `입찰 불가: ${why}` : "";
+  }
+}
+
+const tickSound = countdownTicker();
+function renderTimer() {
+  if (P) {
+    const left = P.status === "running" ? Math.max(0, P.ends_at - Date.now()) : P.status === "paused" ? P.paused_left_ms : P.status === "ready" ? P.config.startSeconds * 1000 : 0;
+    tickSound(P, left);
+    const num = $("timerNum");
+    num.textContent = ["done", "result", "setup"].includes(P.status) ? "-" : (left / 1000).toFixed(1);
+    num.classList.toggle("low", P.status === "running" && left < 5000);
+    $("timerBar").style.width = `${Math.min(100, left / (P.config.maxSeconds * 1000) * 100)}%`;
+  }
+  requestAnimationFrame(renderTimer);
+}
+requestAnimationFrame(renderTimer);
+
+/* ---------- 조작 ---------- */
+let resultSig = "", revealed = false, sawRunning = false;
+$("btnReveal").onclick = () => playResultReveal($("resultBody"));
+$("btnStart").onclick = startOrResume;
+$("btnXlsx").onclick = () => {
+  const kind = downloadResultXlsx(P, "연습 경매");
+  $("resultNote").textContent = kind === "xlsx" ? "엑셀 파일을 내려받았어요." : "엑셀 도구를 못 불러와서 CSV 파일(엑셀에서 열림)로 내려받았어요.";
+};
+$("btnPause").onclick = pause;
+$("btnUndo").onclick = undoLast;
+$("btnPng").onclick = () => saveResultImage(P, "연습 경매").then(() => ($("resultNote").textContent = "결과 이미지를 저장했어요.")).catch(() => toast("이미지를 만들지 못했어요."));
+$("btnHammer").onclick = finishLot;
+$("btnNext").onclick = () => { if (P.status === "result") nextPlayer(); };
+$("autoNext").onchange = e => { P.auto_start = e.target.checked; };
+$("btnReset").onclick = () => { if (confirm("처음부터 다시 시작할까요? 경매 결과가 지워집니다. (선수 정보·설정은 그대로)")) { revealed = false; sawRunning = false; init(); } };
+document.addEventListener("keydown", e => {
+  if (e.code !== "Space" || /INPUT|SELECT|TEXTAREA|BUTTON/.test(e.target.tagName)) return;
+  if (document.querySelector(".overlay.show")) return;
+  e.preventDefault();
+  if (P.status === "running") pause(); else startOrResume();
+});
+
+mountSoundToggle($("btnSound"));
+keepScreenOn(() => P && !["setup", "done"].includes(P.status));
+init();
+</script>
+</body>
+</html>

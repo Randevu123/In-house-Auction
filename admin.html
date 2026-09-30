@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내전 운영자 콘솔</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css?v=dev">
+<style>
+  :root { --discord: #5865f2; }
+  header .me { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  header .me img, header .me .av { width: 30px; height: 30px; border-radius: 50%; }
+  #svc { background: none; cursor: pointer; font: inherit; font-size: 12px; }
+  .svc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  .svc-grid div { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }
+  .svc-grid small { display: block; font-size: 11px; color: var(--muted); }
+  .svc-grid b { font-family: var(--num); font-weight: 400; font-size: 22px; }
+  .role { font-size: 11px; font-weight: 900; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .role.owner { color: var(--gold); border-color: var(--gold); }
+  .role.staff { color: var(--ok); border-color: var(--ok); }
+  .role.all { color: #ff8c96; border-color: var(--accent); }
+  .link-btn { background: none; border: 0; color: var(--muted); text-decoration: underline; font-size: 13px; padding: 4px; }
+
+  .gate { max-width: 520px; margin: 60px auto; padding: 0 16px; }
+  .gate .panel { padding: 26px; display: grid; gap: 14px; text-align: center; }
+  .gate h2 { font-family: var(--num); font-weight: 400; font-size: 34px; margin: 0; }
+  .gate p { color: var(--muted); margin: 0; line-height: 1.6; }
+  .btn-discord { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: var(--discord); color: #fff; border: 0; border-radius: 12px; padding: 15px; font-size: 17px; font-weight: 900; }
+
+  .console { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; padding: 16px 20px 40px; align-items: start; }
+  aside { display: grid; gap: 10px; position: sticky; top: 12px; }
+  .ev-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: calc(100vh - 220px); overflow: auto; }
+  .ev-list li { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; display: grid; gap: 4px; }
+  .ev-list li.past { opacity: .72; }
+  .ev-list li.past.on { opacity: 1; }
+  .ev-list .past-head { cursor: pointer; display: flex; align-items: center; gap: 8px; background: none; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; font-weight: 700; padding: 8px 12px; margin-top: 6px; }
+  .ev-list .past-head b { color: var(--text); }
+  .ev-list .past-head span { margin-left: auto; font-size: 12px; }
+  .ev-list li.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 20px rgba(255,70,85,.2); }
+  .ev-list .t { font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ev-list .m { font-size: 12px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { display: inline-block; font-size: 11px; font-weight: 900; padding: 1px 8px; border-radius: 999px; background: rgba(255,255,255,.06); color: var(--muted); }
+  .chip.open { background: rgba(61,220,151,.15); color: var(--ok); }
+  .chip.closed { background: rgba(255,176,32,.12); color: var(--warn); }
+  .chip.done { background: rgba(61,220,151,.15); color: var(--ok); }
+  .chip.part { background: rgba(255,209,102,.12); color: var(--gold); }
+
+  .ev-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .ev-head h2 { margin: 0; font-family: var(--num); font-weight: 400; font-size: 32px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .stat small { display: block; font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+  .stat b { font-family: var(--num); font-weight: 400; font-size: 28px; }
+  .stat b em { font-style: normal; font-size: 16px; color: var(--muted); }
+  .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin-bottom: 14px; overflow-x: auto; }
+  .tabs button { background: none; border: 0; color: var(--muted); padding: 10px 14px; font-weight: 900; border-bottom: 3px solid transparent; white-space: nowrap; }
+  .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+  .tabs button b { font-size: 11px; background: var(--panel-2); padding: 0 6px; border-radius: 999px; margin-left: 4px; }
+
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .toolbar input, .toolbar select, .form-row input, .form-row select, .field input, .field select, .field textarea {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+  .table-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+  table.grid { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1080px; }
+  table.grid th { text-align: left; font-size: 11px; color: var(--muted); padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; letter-spacing: 1px; }
+  table.grid td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table.grid tr:last-child td { border-bottom: 0; }
+  table.grid tr.captain td { background: rgba(255,209,102,.05); }
+  .dc { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .dc img, .dc .av { width: 26px; height: 26px; border-radius: 50%; }
+  .dc small { display: block; color: var(--muted); font-size: 11px; }
+  .star { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; width: 34px; height: 30px; font-size: 16px; }
+  .star.on { color: #1a1400; background: var(--gold); border-color: var(--gold); }
+  .chk { display: grid; gap: 4px; min-width: 120px; }
+  .chk .names { font-size: 11px; color: var(--muted); }
+  .chk button { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 12px; font-weight: 700; }
+  .chk button.mine { border-color: var(--ok); color: var(--ok); }
+  .calc { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .memo { max-width: 180px; font-size: 12px; color: #d9c7ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  .memo.empty { color: var(--muted); }
+  .acts { display: flex; gap: 4px; }
+  .acts button { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+  .acts button.del { color: #ff8c96; }
+  .score { font-family: var(--num); font-size: 18px; color: var(--gold); }
+
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .field { display: grid; gap: 6px; }
+  .field label { font-size: 12px; font-weight: 700; color: var(--muted); }
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg button { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 9px 14px; font-weight: 700; }
+  .seg button.on { border-color: var(--accent); background: rgba(255,70,85,.15); color: #ff8c96; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; margin-bottom: 14px; }
+  .card h3 { margin: 0; font-size: 13px; letter-spacing: 2px; color: var(--muted); }
+  .big-state { font-family: var(--num); font-size: 26px; }
+
+  .tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .tasks li { display: grid; grid-template-columns: 26px 1fr 160px 150px 34px; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+  .tasks li.done .tt { text-decoration: line-through; color: var(--muted); }
+  .tasks li.late .due { color: var(--accent); font-weight: 900; }
+  .tasks input[type=checkbox] { width: 18px; height: 18px; }
+  .tasks select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px; font-size: 12px; }
+  .tasks .due { font-size: 12px; color: var(--muted); }
+  .tasks .x { background: none; border: 0; color: var(--muted); font-size: 18px; }
+  .form-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .form-row input[type=text] { flex: 1; min-width: 180px; }
+
+  .people { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .people li { display: flex; align-items: center; gap: 10px; background: var(--panel-2); border-radius: 10px; padding: 8px 10px; }
+  .people li .grow { flex: 1; min-width: 0; }
+  .people img, .people .av { width: 34px; height: 34px; border-radius: 50%; }
+
+  #hostTo { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+  .host-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+  .host-chip b { color: var(--gold); }
+  .prep-step h3 .n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; margin-right: 6px; letter-spacing: 0; }
+  .prep-step.locked { opacity: .6; }
+  .prep-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .prep-table th { text-align: left; font-size: 11px; color: var(--muted); padding: 8px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .prep-table td { padding: 6px; border-bottom: 1px solid var(--line); }
+  .prep-table tr.excluded td { opacity: .4; }
+  .prep-table tr.cap td { background: rgba(255,209,102,.06); }
+  .prep-table input[type=number] { width: 90px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 6px; }
+  .prep-table .star { min-width: 64px; }
+  .prep-table th.sortable { cursor: pointer; user-select: none; }
+  .prep-table th.sortable:hover, .prep-table th.sortable.on { color: var(--text); }
+  .prep-tools { margin: 4px 0 0; }
+  .prep-table .rec { margin-left: 6px; font-size: 11px; color: var(--muted); opacity: .6; white-space: nowrap; }
+  .prep-table .rec.same { opacity: .3; }
+  .save-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .prep-tools a { color: var(--accent); }
+  .danger { border-color: rgba(255,70,85,.5); }
+  .danger h3 { color: #ff8c96; }
+  .log-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .log-list li { display: grid; grid-template-columns: 165px 110px 150px 1fr; gap: 12px; align-items: start; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: 13px; }
+  .log-list .when { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .log-list .who { font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log-list .act { font-weight: 700; }
+  .log-list .detail { color: #cfd5e6; word-break: break-word; }
+  .log-list .ev { display: block; color: var(--muted); font-size: 11px; }
+  .act.a-add { color: var(--ok); } .act.a-del { color: #ff8c96; } .act.a-edit { color: var(--gold); } .act.a-check { color: #8fd3ff; } .act.a-staff { color: #c9a6ff; }
+  @media (max-width: 900px) { .log-list li { grid-template-columns: 1fr; gap: 2px; } }
+  .modal { position: fixed; inset: 0; background: rgba(5,6,10,.85); z-index: 45; display: none; place-items: center; padding: 16px; }
+  .modal.show { display: grid; }
+  .modal .box { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: grid; gap: 12px; }
+  #editModal .box { width: min(640px, 100%); }
+  #editModal .agent-pick button { padding: 5px 9px; font-size: 13px; }
+  .modal h3 { margin: 0; font-family: var(--num); font-weight: 400; font-size: 26px; }
+  .modal textarea { min-height: 70px; resize: vertical; }
+  .modal .row { display: flex; gap: 8px; justify-content: flex-end; }
+  .warn-note { font-size: 12px; color: var(--warn); }
+  .empty-view { color: var(--muted); text-align: center; padding: 60px 10px; }
+
+  @media (max-width: 900px) {
+    .console { grid-template-columns: 1fr; padding: 12px 16px 40px; }
+    aside { position: static; }
+    .ev-list { max-height: 240px; }
+    .tasks li { grid-template-columns: 26px 1fr 34px; }
+    .tasks li select, .tasks li .due { grid-column: 2 / 3; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <a class="home-btn" href="index.html" title="홈으로">홈</a>
+  <div class="logo">VALORANT <span>운영자 콘솔</span></div>
+  <div class="spacer"></div>
+  <button class="conn" id="svc" hidden title="서비스 상태 보기">서버 확인 중…</button>
+  <div class="me" id="me" hidden></div>
+</header>
+
+<div class="gate" id="gate" hidden><div class="panel" id="gateBox"></div></div>
+
+<div class="console" id="console" hidden>
+  <aside>
+    <button class="btn primary" id="btnNewEvent">새 회차 만들기</button>
+    <ul class="ev-list" id="evList"></ul>
+    <button class="btn" id="btnStaff">운영자 관리</button>
+  </aside>
+  <main id="view"></main>
+</div>
+
+<!-- 신청 고치기 -->
+<div class="modal" id="editModal"><div class="box">
+  <h3>신청 고치기</h3>
+  <div class="dc" id="editWho"></div>
+  <div class="field"><label>게임 닉네임</label><input id="eNick" maxlength="16"></div>
+  <div class="form-grid">
+    <div class="field"><label>최고 티어</label><select id="ePeak"></select></div>
+    <div class="field"><label>현재 티어</label><select id="eCur"></select></div>
+    <div class="field" style="grid-column:1/-1"><label>포지션 (여러 개 가능)</label><div id="ePos"></div></div>
+    <div class="field"><label>점수 직접 입력 (비우면 자동)</label><input id="eScore" type="number" step="0.1" min="0" max="1000" placeholder="자동"></div>
+  </div>
+  <div class="calc" id="eCalc"></div>
+  <div class="field"><label>주 요원 (최대 3개, 누른 순서대로)</label><div id="eAgents"></div></div>
+  <div class="field"><label>각오 한마디 (선수 카드에 나와요)</label><input id="eMotto" maxlength="60"></div>
+  <div class="field"><label>운영자 메모 (참가자에게는 안 보여요)</label><textarea id="eMemo" maxlength="200"></textarea></div>
+  <div class="warn-note">티어를 바꾸면 이 사람의 티어 검수와 점수 재확인이 처음부터 다시 시작돼요.</div>
+  <div class="row"><button class="btn" data-close>닫기</button><button class="btn primary" id="btnEditSave">저장</button></div>
+</div></div>
+
+<!-- 새 회차 -->
+<div class="modal" id="newModal"><div class="box">
+  <h3>새 회차 만들기</h3>
+  <div class="field"><label>회차 이름</label><input id="nTitle" maxlength="60" placeholder="예: 10월 1주차 내전"></div>
+  <p style="color:var(--muted);margin:0;font-size:13px">만든 뒤 ‘일정’ 탭에서 신청 기간과 경매 날짜를 정하고 신청을 여세요. 처음에는 신청이 닫혀 있어요.</p>
+  <div class="row"><button class="btn" data-close>닫기</button><button class="btn primary" id="btnNewSave">만들기</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js?v=dev"></script>
+<script src="common.js?v=dev"></script>
+<script>
+/* =====================================================================
+   운영자 콘솔 — 경매 전에 쓰는 화면
+   참가자 명단 관리(고치기·지우기·메모·팀장 배정), 티어/점수 교차검수(운영자 2명),
+   회차 일정·신청 마감, 할 일, 링크, 운영자 초대·승인
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const Q = new URLSearchParams(location.search);
+// 검수 완료에 필요한 확인 수: 진행자·제작자·모든 회차 진행 권한자를 뺀 운영자가 3명 이하면 1명, 4명 이상이면 2명
+function checkers() {
+  const host = detail && detail.host && detail.host.user_id;
+  return (window.members || []).filter(m => m.role === "staff" && !m.all_host && m.user_id !== host).length;
+}
+function needChecks() { return checkers() <= 3 ? 1 : 2; }
+let sb, me = null, events = [], detail = null, members = [], selected = null, tab = "people", filter = "all", search = "", myOnly = false, view = "event";
+let channel = null, logs = [], logsFor = null, logSearch = "";   // logsFor: 지금 들고 있는 기록이 어느 것인지 ('site' 또는 회차 id)
+
+function fail(msg) { $("gate").hidden = false; $("console").hidden = true; $("gateBox").innerHTML = `<h2>잠시만요</h2><p>${esc(msg)}</p>`; }
+function discordImg(url, name, size) {
+  return url ? `<img src="${esc(url)}" alt="" referrerpolicy="no-referrer" style="width:${size}px;height:${size}px;border-radius:50%" onerror="this.onerror=null;this.src='${letterSvg([...(name || "?")][0] || "?")}'">` : avatar({ name }, size);
+}
+function fmt(ms) { return ms ? new Date(ms).toLocaleString("ko-KR", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" }) : "미정"; }
+function toLocalInput(ms) { if (!ms) return ""; const d = new Date(ms); return new Date(ms - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
+function fromLocalInput(v) { return v ? new Date(v).toISOString() : null; }
+async function call(fn, args = {}) {
+  const { data, error } = await sb.rpc(fn, args);
+  if (error) { toast("서버에 닿지 못했어요: " + error.message); return null; }
+  return data;
+}
+async function mutate(fn, args) {
+  const r = await call(fn, args);
+  if (r && r.ok === false) { toast(r.reason); return r; }
+  if (r) { ping(); lastSig = ""; if (document.activeElement) document.activeElement.blur(); await refresh(); }
+  return r;
+}
+function ping() { if (channel) channel.send({ type: "broadcast", event: "changed", payload: {} }); }
+// 경매 준비를 바꾸면 진행자·팀장 화면에도 바로 알림 (그 회차의 실시간 채널)
+let auctionCh = null, auctionChId = null;
+function auctionChannel(id) {
+  if (auctionChId === id) return auctionCh;
+  if (auctionCh) sb.removeChannel(auctionCh);
+  auctionChId = id;
+  auctionCh = sb.channel(`auction-${id}`, { config: { broadcast: { self: false } } });
+  auctionCh.subscribe();
+  return auctionCh;
+}
+
+/* ---------- 로그인과 권한 ---------- */
+async function boot() {
+  if (!isConfigured()) return fail("아직 Supabase 연결 정보가 없어요.");
+  sb = window.supabase.createClient(AUCTION_CONFIG.supabaseUrl, AUCTION_CONFIG.supabaseKey, {
+    auth: { flowType: "implicit", persistSession: true, detectSessionInUrl: true, autoRefreshToken: true },
+  });
+  const hash = new URLSearchParams(location.hash.slice(1));
+  if (hash.get("error_description")) toast("로그인하지 못했어요: " + hash.get("error_description"));
+  await sb.auth.getSession();
+  if (location.hash.includes("access_token") || location.hash.includes("error")) history.replaceState(null, "", location.pathname + location.search);
+  let last = null;
+  sb.auth.onAuthStateChange((ev, s) => { const t = s && s.access_token; if (t !== last) { last = t; setTimeout(route, 0); } });
+  route();
+}
+
+async function login() {
+  const { error } = await sb.auth.signInWithOAuth({ provider: "discord", options: { redirectTo: location.href.split("#")[0] } });
+  if (error) toast("로그인을 시작하지 못했어요: " + error.message);
+}
+async function logout() { await sb.auth.signOut(); location.reload(); }
+
+async function route() {
+  me = await call("my_role");
+  if (!me) return fail("서버에 연결하지 못했어요. 잠시 뒤 새로고침해 주세요.");
+  renderMe();
+  const box = $("gateBox");
+  const claim = Q.get("claim"), claimKey = Q.get("k"), invite = Q.get("invite");
+  if (!me.logged_in) {
+    showGate(`<h2>운영자 로그인</h2><p>제작자에게 승인받은 운영자만 들어올 수 있어요.<br>디스코드 계정으로 로그인해 주세요.</p>
+      <button class="btn-discord" id="gLogin">디스코드로 로그인</button>`);
+    $("gLogin").onclick = login; return;
+  }
+  if (me.role === "owner" || me.role === "staff") return startConsole();
+  if (!me.owner_exists && claim && claimKey) {
+    showGate(`<h2>제작자 등록</h2><p><b>${esc(me.name)}</b> 계정을 이 사이트의 제작자(주인)로 등록할까요?<br>제작자는 운영자를 초대·승인하고, 모든 회차의 진행자를 정할 수 있어요. 한 번 등록하면 다른 사람은 제작자가 될 수 없어요.</p>
+      <button class="btn primary big" id="gClaim">제작자로 등록</button>`);
+    $("gClaim").onclick = async () => { const r = await call("claim_owner", { p_id: claim, p_key: claimKey }); if (r && !r.ok) toast(r.reason); history.replaceState(null, "", location.pathname); route(); };
+    return;
+  }
+  if (me.role === "pending") return showGate(`<h2>승인 기다리는 중</h2><p><b>${esc(me.name)}</b> 님의 운영자 요청을 보냈어요.<br>제작자가 승인하면 이 화면을 새로고침해 주세요.</p><button class="btn" onclick="location.reload()">새로고침</button>`);
+  if (invite) {
+    showGate(`<h2>운영자 초대</h2><p><b>${esc(me.name)}</b> 계정으로 운영자 요청을 보낼까요?<br>제작자가 승인하면 운영자 콘솔을 쓸 수 있어요.</p><button class="btn primary big" id="gReq">운영자 요청 보내기</button>`);
+    $("gReq").onclick = async () => { const r = await call("request_staff", { p_invite: invite }); if (r && !r.ok) toast(r.reason); route(); };
+    return;
+  }
+  showGate(me.owner_exists
+    ? `<h2>운영자가 아니에요</h2><p>제작자에게 운영자 초대 링크를 받아서 들어와 주세요.</p>`
+    : `<h2>제작자 등록 전</h2><p>아직 제작자가 없어요. 제작자는 경매 진행자 화면의 ‘운영자 콘솔’ 버튼으로 들어오면 등록할 수 있어요.</p>`);
+}
+function showGate(html) { $("gate").hidden = false; $("console").hidden = true; $("gateBox").innerHTML = html; }
+function renderMe() {
+  const el = $("me");
+  if (!me || !me.logged_in) { el.hidden = true; return; }
+  const label = { owner: "제작자", staff: "운영자", pending: "승인 대기" }[me.role] || "로그인됨";
+  el.hidden = false;
+  el.innerHTML = `${discordImg(me.avatar, me.name, 30)}<span>${esc(me.name)}</span><span class="role ${esc(me.role || "")}">${label}</span><button class="link-btn" id="btnLogout">로그아웃</button>`;
+  $("btnLogout").onclick = logout;
+}
+
+/* ---------- 서비스 상태 (무료 요금제는 7일 동안 안 쓰면 멈춤) ---------- */
+let svc = null;
+async function pingService() {
+  const t0 = Date.now();
+  const { data, error } = await sb.rpc("service_ping");
+  svc = error || !data ? { ok: false, error: error ? error.message : "응답 없음" } : { ...data, rtt: Date.now() - t0 };
+  renderSvcChip();
+  if (view === "staff" && $("svcCard")) $("svcCard").innerHTML = svcCardHtml();
+}
+function ago(ms) {
+  if (!ms) return "기록 없음";
+  const m = Math.floor((Date.now() - ms) / 60000);
+  return m < 1 ? "방금" : m < 60 ? `${m}분 전` : m < 1440 ? `${Math.floor(m / 60)}시간 전` : `${Math.floor(m / 1440)}일 전`;
+}
+function renderSvcChip() {
+  const el = $("svc"); el.hidden = false;
+  el.className = "conn " + (svc && svc.ok ? "on" : "off");
+  el.textContent = svc && svc.ok ? `서버 정상 · ${svc.rtt}ms` : "서버 연결 안 됨";
+}
+function svcCardHtml() {
+  if (!svc) return `<div style="color:var(--muted)">확인 중…</div>`;
+  if (!svc.ok) return `<div class="big-state" style="color:var(--accent)">서버에 연결되지 않아요</div>
+    <div style="color:var(--muted);font-size:13px;line-height:1.6">무료 요금제가 7일 동안 쓰이지 않아 멈췄을 수 있어요. <a href="https://supabase.com/dashboard" target="_blank" style="color:var(--gold)">Supabase 대시보드</a>에서 프로젝트를 열고 <b>Restore project</b>(다시 켜기)를 눌러 주세요. 켜지는 데 몇 분 걸려요.<br>오류: ${esc(svc.error)}</div>`;
+  const mb = svc.db_bytes / 1048576, idleDays = svc.last_activity ? (Date.now() - svc.last_activity) / 86400000 : 0;
+  return `<div class="big-state" style="color:var(--ok)">서버가 켜져 있어요</div>
+    <div class="svc-grid">
+      <div><small>응답 속도</small><b>${svc.rtt}ms</b></div>
+      <div><small>이 확인 전 마지막 사용</small><b>${ago(svc.last_activity)}</b></div>
+      <div><small>데이터베이스 사용량 (무료 500MB)</small><b>${mb.toFixed(1)}MB</b></div>
+      <div><small>그중 선수 사진</small><b>${((svc.photo_bytes || 0) / 1048576).toFixed(1)}MB</b></div>
+      <div><small>회차 · 신청</small><b>${svc.rounds} · ${svc.signups}</b></div>
+      <div><small>자동 깨우기 (3일마다)</small><b>${svc.last_auto_ping ? ago(svc.last_auto_ping) : "아직 없음"}</b></div>
+    </div>
+    <div style="color:${idleDays > 5 ? "var(--warn)" : "var(--muted)"};font-size:13px;line-height:1.6">
+      무료 요금제는 7일 동안 쓰지 않으면 멈춰요. 운영자 콘솔을 열 때마다 ‘사용 중’ 기록을 남겨서 7일을 다시 세요.
+      GitHub가 3일마다 서버를 자동으로 깨우고 있어요. 그래도 <b>내전 전날 이 화면을 한 번 열어 확인하면 가장 안전해요.</b>${idleDays > 5 ? ` (이번엔 ${Math.floor(idleDays)}일 만에 열었어요)` : ""}</div>
+    ${mb > 350 ? `<div class="warn-note">사용량이 무료 한도(500MB)에 가까워요. 지난 회차의 ‘일정 · 신청 마감’ 탭에서 ‘선수 사진 지우기’로 줄일 수 있어요.</div>` : ""}
+    <div><button class="btn" id="btnSvcRe">다시 확인</button></div>`;
+}
+$("svc").onclick = () => { view = "staff"; lastSig = ""; render(); refresh(); };
+
+/* ---------- 콘솔 ---------- */
+async function startConsole() {
+  $("gate").hidden = true; $("console").hidden = false;
+  $("btnStaff").textContent = me.role === "owner" || me.can_invite ? "운영자 관리 · 초대" : "운영자 명단";
+  try { selected = localStorage.getItem("valo-console-event"); } catch (e) { /* 무시 */ }
+  channel = sb.channel("staff-console", { config: { broadcast: { self: false } } })
+    .on("broadcast", { event: "changed" }, () => refresh()).subscribe();
+  await refresh();
+  setInterval(refresh, 6000);
+  pingService();
+  setInterval(pingService, 10 * 60 * 1000);   // 콘솔을 켜 둔 동안 10분마다 확인
+}
+
+async function refresh() {
+  const [ev, mem] = await Promise.all([call("list_events"), call("staff_members")]);
+  if (ev === null) return route();            // 권한이 사라졌으면 처음 화면으로
+  events = ev; members = mem || []; window.members = members;
+  if (!selected || !events.some(e => e.id === selected)) { const first = events.find(e => !isPast(e)) || events[0]; selected = first ? first.id : null; }
+  detail = selected ? await call("event_detail", { p_id: selected }) : null;
+  if (detail) auctionChannel(detail.event.id);
+  // 기록을 못 불러오면 이전 목록을 그대로 둠 (빈 목록으로 덮지 않음)
+  if (view === "staff") { const l = await call("get_log", { p_id: null, p_limit: 300 }); if (Array.isArray(l) && view === "staff") { logs = l; logsFor = "site"; } }
+  else if (tab === "log" && selected) { const want = selected, l = await call("get_log", { p_id: want, p_limit: 500 }); if (Array.isArray(l) && selected === want) { logs = l; logsFor = want; } }
+  const sig = JSON.stringify([events, detail, members, selected, view, tab, logs]);
+  if (sig === lastSig) return;
+  lastSig = sig;
+  // 입력하는 도중에는 다시 그리지 않음 (입력칸을 벗어나면 그림)
+  const f = document.activeElement;
+  if (f && $("view").contains(f) && /INPUT|SELECT|TEXTAREA/.test(f.tagName) && f.id !== "fSearch" && f.id !== "logSearch") { pendingRender = true; return; }
+  render();
+}
+let lastSig = "", pendingRender = false;
+document.addEventListener("focusout", () => setTimeout(() => {
+  const f = document.activeElement;
+  if (pendingRender && !(f && $("view").contains(f) && /INPUT|SELECT|TEXTAREA/.test(f.tagName))) { pendingRender = false; render(); }
+}, 0));
+
+function selectEvent(id) {
+  selected = id; view = "event"; lastSig = "";
+  try { localStorage.setItem("valo-console-event", id); } catch (e) { /* 무시 */ }
+  refresh();
+}
+
+function render() {
+  // 진행 중·예정 회차와 지난 회차(경매가 끝났거나 경기 일시가 지난 회차)를 나눠 보여 줌
+  const active = events.filter(e => !isPast(e));
+  const past = events.filter(isPast).sort((a, b) => pastSort(b) - pastSort(a));
+  if (past.some(e => e.id === selected)) pastOpen = true;
+  const evItem = e => {
+    const done = isPast(e);
+    return `<li class="${e.id === selected && view === "event" ? "on" : ""} ${done ? "past" : ""}" data-ev="${e.id}">
+      <div class="t">${esc(e.title || "이름 없는 회차")}</div>
+      <div class="m">${done ? `<span class="chip">${e.status_label === "done" ? "경매 끝" : "경기 지남"}</span><span>경기 ${fmt(e.match_at || e.auction_at)}</span>`
+        : `<span class="chip ${e.open ? "open" : "closed"}">${e.open ? "신청 받는 중" : "신청 닫힘"}</span><span>경매 ${fmt(e.auction_at)}</span>`}</div>
+      <div class="m"><span>신청 ${e.signups}명</span><span>팀장 ${e.captains}명</span>${e.host_name ? `<span>진행 ${esc(e.host_name)}</span>` : ""}${!done && e.tasks_open ? `<span>할 일 ${e.tasks_open}</span>` : ""}</div>
+    </li>`;
+  };
+  $("evList").innerHTML = (active.length ? active.map(evItem).join("")
+      : `<li style="cursor:default;color:var(--muted)">${events.length ? "진행 중이거나 예정된 회차가 없어요." : "아직 회차가 없어요. ‘새 회차 만들기’를 눌러 주세요."}</li>`)
+    + (past.length ? `<li class="past-head" data-past-toggle>지난 회차 <b>${past.length}</b><span>${pastOpen ? "접기 ▲" : "펼치기 ▼"}</span></li>${pastOpen ? past.map(evItem).join("") : ""}` : "");
+  if (view === "staff") return renderStaff();
+  if (!detail) { $("view").innerHTML = `<div class="empty-view">왼쪽에서 회차를 고르거나 새로 만들어 주세요.</div>`; return; }
+  renderEvent();
+}
+$("evList").addEventListener("click", e => {
+  if (e.target.closest("[data-past-toggle]")) {
+    pastOpen = !pastOpen;
+    try { localStorage.setItem("valo-console-past-open", pastOpen ? "1" : "0"); } catch (err) { /* 무시 */ }
+    return render();
+  }
+  const li = e.target.closest("[data-ev]"); if (li) selectEvent(li.dataset.ev);
+});
+// 지난 회차: 경매가 끝났거나(done) 경기 일시가 지난 회차
+function isPast(e) { return e.status_label === "done" || (!!e.match_at && e.match_at < Date.now()); }
+function pastSort(e) { return e.match_at || e.auction_at || e.created_at || 0; }
+let pastOpen = false;
+try { pastOpen = localStorage.getItem("valo-console-past-open") === "1"; } catch (err) { /* 무시 */ }
+
+function checksOf(s, kind) { return s.checks.filter(c => c.kind === kind); }
+function isDone(s, kind) { return checksOf(s, kind).length >= needChecks(); }
+
+function renderEvent() {
+  const e = detail.event, S = detail.signups, T = detail.tasks;
+  setScoreConfig(e.config);
+  const caps = S.filter(s => s.captain).length;
+  const tierDone = S.filter(s => isDone(s, "tier")).length, scoreDone = S.filter(s => isDone(s, "score")).length;
+  const openTasks = T.filter(t => !t.done).length;
+  $("view").innerHTML = `
+    <div class="ev-head">
+      <h2>${esc(e.title || "이름 없는 회차")}</h2>
+      ${isPast({ status_label: e.status, match_at: e.match_at }) ? `<span class="chip">지난 회차</span>` : ""}
+      <span class="chip ${e.open ? "open" : "closed"}">${e.open ? "신청 받는 중" : "신청 닫힘"}</span>
+      <span style="color:var(--muted);font-size:13px">경매 ${fmt(e.auction_at)} · 경기 ${fmt(e.match_at)}</span>
+      <span class="host-chip">진행자 <b>${esc(detail.host.name || "없음")}</b>${detail.host.user_id === me.user_id ? " (나)" : ""}</span>
+    </div>
+    ${e.locked ? `<div class="lock-banner">잠김 · 지난 회차라 참가자 고치기와 일정·경매 설정을 바꿀 수 없어요. (할 일·기록·CSV·결과 내려받기는 돼요)
+      ${detail.can_host ? `<button class="btn" id="btnUnlock">잠금 풀기</button>` : `<span style="font-weight:400">고쳐야 하면 이 회차의 진행자나 제작자에게 잠금 풀기를 부탁하세요.</span>`}</div>`
+      : e.unlocked && isPast({ status_label: e.status, match_at: e.match_at }) ? `<div class="lock-banner" style="color:var(--ok);border-color:var(--ok);background:rgba(61,220,151,.06)">지난 회차지만 잠금을 풀어 두었어요. 다 고쳤으면 다시 잠가 주세요.
+      ${detail.can_host ? `<button class="btn" id="btnRelock">다시 잠그기</button>` : ""}</div>` : ""}
+    <div class="stats">
+      <div class="stat"><small>신청</small><b>${S.length}<em>명</em></b></div>
+      <div class="stat"><small>팀장 배정</small><b>${caps}<em>명</em></b></div>
+      <div class="stat"><small>티어 검수 완료</small><b>${tierDone}<em> / ${S.length}</em></b></div>
+      <div class="stat"><small>점수 재확인 완료</small><b>${scoreDone}<em> / ${S.length}</em></b></div>
+      <div class="stat"><small>남은 할 일</small><b>${openTasks}<em>개</em></b></div>
+    </div>
+    <div class="tabs">
+      ${[["people", "참가자", S.length], ["prep", "경매 준비"], ["schedule", "일정 · 신청 마감"], ["tasks", "할 일", openTasks], ["result", "경매 결과"], ["links", "링크"], ["log", "기록"]]
+        .map(([k, l, n]) => `<button data-tab="${k}" class="${tab === k ? "on" : ""}">${l}${n !== undefined ? `<b>${n}</b>` : ""}</button>`).join("")}
+    </div>
+    <div id="tabBody"></div>`;
+  $("view").querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; if (tab === "log") { lastSig = ""; refresh(); } renderEvent(); });
+  ({ people: renderPeople, prep: renderPrep, schedule: renderSchedule, tasks: renderTasks, result: renderResult, links: renderLinks, log: renderLog })[tab]();
+  if ($("btnUnlock")) $("btnUnlock").onclick = () => { if (confirm("이 지난 회차의 잠금을 풀까요? 참가자·설정을 다시 고칠 수 있게 돼요.")) mutate("set_event_unlocked", { p_id: e.id, p_unlocked: true }); };
+  if ($("btnRelock")) $("btnRelock").onclick = () => mutate("set_event_unlocked", { p_id: e.id, p_unlocked: false });
+}
+
+/* ---------- 참가자: 고치기·지우기·메모·팀장·교차검수 ---------- */
+function renderPeople() {
+  const e = detail.event, RO = !!e.locked;
+  const list = detail.signups.filter(s => {
+    if (search && !`${s.nick} ${s.discord_name} ${s.discord_username}`.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filter === "todo") return !isDone(s, "tier") || !isDone(s, "score");
+    if (filter === "done") return isDone(s, "tier") && isDone(s, "score");
+    if (filter === "captain") return s.captain;
+    return true;
+  });
+  const checkCell = (s, kind) => {
+    const cs = checksOf(s, kind), mine = cs.some(c => c.user_id === me.user_id), n = cs.length;
+    const state = n >= needChecks() ? `<span class="chip done">완료 ${n}/${needChecks()}</span>` : n ? `<span class="chip part">${n}/${needChecks()}</span>` : `<span class="chip">0/${needChecks()}</span>`;
+    return `<div class="chk">${state}<div class="names">${cs.map(c => esc(c.name)).join(", ") || "아직 없음"}</div>
+      <button class="${mine ? "mine" : ""}" data-check="${kind}" data-id="${s.id}" data-on="${mine ? 0 : 1}" ${RO ? "disabled" : ""}>${mine ? "내 확인 취소" : "확인"}</button></div>`;
+  };
+  $("tabBody").innerHTML = `
+    <div class="toolbar">
+      <input id="fSearch" placeholder="닉네임·디스코드 이름 찾기" value="${esc(search)}">
+      <select id="fFilter">
+        ${[["all", "전체"], ["todo", "검수 덜 된 사람"], ["done", "검수 끝난 사람"], ["captain", "팀장만"]].map(([k, l]) => `<option value="${k}" ${filter === k ? "selected" : ""}>${l}</option>`).join("")}
+      </select>
+      <button class="btn" id="btnPeopleCsv" type="button">명단 CSV로 내려받기</button>
+      <span style="color:var(--muted);font-size:12px">검수는 ${needChecks() === 1 ? "운영자 1명" : "서로 다른 운영자 2명"}이 ‘확인’을 누르면 완료돼요 (진행자·제작자를 뺀 운영자가 ${checkers()}명이라 ${needChecks()}명). ★ = 팀장 (팀 수 = 팀장 수, 최대 8명)</span>
+    </div>
+    <div class="table-wrap"><table class="grid">
+      <thead><tr><th>팀장</th><th>#</th><th>디스코드</th><th>게임 닉네임</th><th>최고 티어</th><th>현재 티어</th><th>포지션 · 주 요원</th><th>점수</th><th>티어 검수</th><th>점수 계산 재확인</th><th>메모</th><th></th></tr></thead>
+      <tbody>${list.length ? list.map((s, i) => `
+        <tr class="${s.captain ? "captain" : ""}">
+          <td><button class="star ${s.captain ? "on" : ""}" data-cap="${s.id}" title="팀장 배정" ${RO ? "disabled" : ""}>★</button></td>
+          <td>${detail.signups.indexOf(s) + 1}</td>
+          <td><div class="dc">${discordImg(s.discord_avatar, s.discord_name, 26)}<div><b>${esc(s.discord_name)}</b>${s.discord_username ? `<small>@${esc(s.discord_username)}</small>` : ""}</div></div></td>
+          <td>${gradeBadge(s, "sm")}<b>${esc(s.nick)}</b>${s.bench ? `<span class="bench-chip">대기</span>` : ""}${s.updated_by ? `<div class="calc">${esc(s.updated_by)} 님이 고침</div>` : ""}</td>
+          <td>${esc(s.peak)}</td><td>${esc(s.current)}</td><td>${esc(s.pos)}${agentChips(s, "sm")}</td>
+          <td><span class="score">${playerScore(s).toFixed(1)}</span>${s.score != null ? `<div class="calc">직접 정함</div>` : ""}</td>
+          <td>${checkCell(s, "tier")}</td>
+          <td><div class="calc">${scoreFormula(s)}${s.score != null ? ` → 직접 정한 점수 <b style="color:var(--gold)">${Number(s.score).toFixed(1)}</b>` : ""}</div>${checkCell(s, "score")}</td>
+          <td><div class="memo ${s.memo ? "" : "empty"}" ${RO ? "" : `data-edit="${s.id}"`} title="${esc(s.memo)}">${s.memo ? esc(s.memo) : RO ? "" : "메모 쓰기"}</div></td>
+          <td>${RO ? `<span class="chip">잠김</span>` : `<div class="acts"><button data-edit="${s.id}">고치기</button><button class="del" data-del="${s.id}">지우기</button></div>`}</td>
+        </tr>`).join("") : `<tr><td colspan="12" class="empty-view" style="padding:30px">조건에 맞는 신청이 없어요.</td></tr>`}</tbody>
+    </table></div>`;
+  $("fSearch").oninput = ev => { search = ev.target.value; const pos = ev.target.selectionStart; renderPeople(); const f = $("fSearch"); f.focus(); f.setSelectionRange(pos, pos); };
+  $("fFilter").onchange = ev => { filter = ev.target.value; renderPeople(); };
+  $("btnPeopleCsv").onclick = downloadPeopleCsv;
+  const body = $("tabBody");
+  body.onclick = async ev => {
+    const t = ev.target.closest("button, [data-edit]"); if (!t) return;
+    if (t.dataset.check) return mutate("signup_check", { p_signup: Number(t.dataset.id), p_kind: t.dataset.check, p_on: t.dataset.on === "1" });
+    if (t.dataset.cap) { const s = detail.signups.find(x => x.id === Number(t.dataset.cap)); return mutate("signup_update", { p_signup: s.id, p_patch: { captain: !s.captain } }); }
+    if (t.dataset.del) {
+      const s = detail.signups.find(x => x.id === Number(t.dataset.del));
+      if (confirm(`${s.nick} (${s.discord_name}) 님의 신청을 지울까요? 되돌릴 수 없어요.`)) return mutate("signup_delete", { p_signup: s.id });
+      return;
+    }
+    if (t.dataset.edit) openEdit(Number(t.dataset.edit));
+  };
+}
+
+let editing = null, editAgents = null;
+for (const id of ["ePeak", "eCur"]) $(id).innerHTML = TIER_OPTIONS.map(t => `<option>${t}</option>`).join("");
+let editPos = null;
+function openEdit(id) {
+  const s = detail.signups.find(x => x.id === id); if (!s) return;
+  editing = s;
+  $("editWho").innerHTML = `${discordImg(s.discord_avatar, s.discord_name, 26)}<div><b>${esc(s.discord_name)}</b>${s.discord_username ? `<small>@${esc(s.discord_username)}</small>` : ""}</div>`;
+  $("eNick").value = s.nick; $("ePeak").value = s.peak; $("eCur").value = s.current; editPos = mountPosPicker($("ePos"), s.pos); $("eMemo").value = s.memo || "";
+  $("eScore").value = s.score != null ? s.score : "";
+  editAgents = mountAgentPicker($("eAgents"), agentsOf(s));
+  $("eMotto").value = s.motto || "";
+  updateEditCalc();
+  $("editModal").classList.add("show");
+}
+function updateEditCalc() {
+  const auto = scoreFormula({ peak: $("ePeak").value, current: $("eCur").value });
+  $("eCalc").innerHTML = `자동 점수: ${auto}${$("eScore").value !== "" ? ` → 직접 정한 점수 <b style="color:var(--gold)">${Number($("eScore").value).toFixed(1)}</b>를 씁니다 (부계정 등)` : ""}`;
+}
+["ePeak", "eCur", "eScore"].forEach(id => $(id).addEventListener("input", updateEditCalc));
+$("btnEditSave").onclick = async () => {
+  const sc = $("eScore").value.trim();
+  if (sc !== "" && !(Number(sc) >= 0 && Number(sc) <= 1000)) return toast("점수는 0에서 1000 사이로 적어 주세요.");
+  if (!editPos.get()) return toast("포지션을 하나 이상 골라 주세요.");
+  const r = await mutate("signup_update", { p_signup: editing.id, p_patch: { nick: $("eNick").value, peak: $("ePeak").value, current: $("eCur").value, pos: editPos.get(), agents: editAgents.get(), motto: $("eMotto").value, memo: $("eMemo").value, score: sc === "" ? null : Number(sc) } });
+  if (r && r.ok) $("editModal").classList.remove("show");
+};
+
+// 경매 준비에서 바꿨지만 아직 서버에 저장하지 않은 것 (팀장·포함/대기·경매 티어)
+// 경매 준비 서명: 서버의 _prep_sig와 같은 방식 (팀장·대기·경매 티어가 있는 신청만, 신청 번호 순)
+// 불러온 때의 서명(baseSig)을 같이 보내서, 그사이 다른 운영자가 저장했으면 서버가 덮어쓰지 않게 함
+function prepSigOf(rows) {
+  return rows.filter(r => r.cap || r.bench || r.grade).sort((a, b) => a.id - b.id)
+    .map(r => `${r.id}:${r.cap ? 1 : 0}${r.bench && !r.cap ? 1 : 0}${r.cap ? "-" : r.grade || "-"}`).join(",");
+}
+function serverPrepSig(sigs) { return prepSigOf(sigs.map(x => ({ id: x.id, cap: !!x.captain, bench: !!x.bench, grade: x.grade || "" }))); }
+function draftPrepSig(d, sigs) {
+  return prepSigOf(sigs.map(x => { const cap = d.caps.includes(x.id); return { id: x.id, cap, bench: !cap && d.excluded.has(x.id), grade: cap ? "" : d.grades[x.id] || "" }; }));
+}
+function loadDraftFromServer(d, sigs) {
+  d.caps = sigs.filter(x => x.captain).map(x => x.id);
+  d.excluded = new Set(sigs.filter(x => x.bench && !x.captain).map(x => x.id));
+  d.grades = {}; sigs.forEach(x => { d.grades[x.id] = x.grade || ""; });
+  d.baseSig = serverPrepSig(sigs); d.conflict = false;
+}
+function prepUnsaved(d, sigs) {
+  if (!d.caps) return 0;
+  return sigs.filter(x => {
+    const cap = d.caps.includes(x.id);
+    return cap !== !!x.captain || (!cap && d.excluded.has(x.id) !== !!x.bench) || (!cap && (d.grades[x.id] || "") !== (x.grade || ""));
+  }).length;
+}
+addEventListener("beforeunload", ev => {
+  if (detail && detail.event && drafts[detail.event.id] && prepUnsaved(drafts[detail.event.id], detail.signups)) { ev.preventDefault(); ev.returnValue = ""; }
+});
+/* ---------- 경매 준비 (이 회차의 진행자·제작자): 명단·팀장·핸디캡 → 설정 → 팀장 링크 → 순서 ---------- */
+const drafts = {};   // 회차별로 아직 저장하지 않은 준비 내용 (6초마다 새로고침돼도 지워지지 않게)
+function draftFor(id) {
+  if (!drafts[id]) drafts[id] = { caps: null, excluded: new Set(), handicaps: {}, settings: null, order: null };
+  return drafts[id];
+}
+async function hostAct(action, arg) {
+  const r = await call("console_host_action", { p_id: detail.event.id, p_action: action, p_arg: arg === undefined ? null : arg });
+  if (!r) return null;
+  if (!r.ok) { toast(r.reason); return r; }
+  auctionChannel(detail.event.id).send({ type: "broadcast", event: "changed", payload: { v: r.state && r.state.version } });
+  ping(); lastSig = ""; await refresh();
+  return r;
+}
+const STATUS_LABEL = { setup: "준비 중", ready: "첫 선수 대기 (진행자 화면에서 시작)", running: "경매 진행 중", paused: "일시정지", result: "결과 발표 중", done: "경매 끝" };
+function renderPrep() {
+  const e = detail.event, st = detail.state, can = detail.can_host, setup = st.status === "setup", L = detail.links;
+  const d = draftFor(e.id), cfg = st.config;
+  const sigs = detail.signups;
+  if (!d.caps) loadDraftFromServer(d, sigs);
+  d.caps = d.caps.filter(id => sigs.some(x => x.id === id));
+  sigs.forEach(x => { if (!(x.id in d.grades)) d.grades[x.id] = x.grade || ""; });
+  // 그사이 다른 운영자가 경매 준비를 저장했는지: 내가 바꾼 게 없으면 새 내용으로 바꾸고, 바꾼 게 있으면 경고
+  { const cur = serverPrepSig(sigs), mine = draftPrepSig(d, sigs);
+    if (cur === mine) { d.baseSig = cur; d.conflict = false; }
+    else if (cur !== d.baseSig) { if (mine === d.baseSig) loadDraftFromServer(d, sigs); else d.conflict = true; } }
+  if (!d.settings) d.settings = { startPoints: cfg.startPoints, bidStep: cfg.bidStep, teamSize: cfg.teamSize, reservePerSlot: cfg.reservePerSlot,
+    startSeconds: cfg.startSeconds, bidAddSeconds: cfg.bidAddSeconds, maxSeconds: cfg.maxSeconds,
+    peakWeight: peakWeight(cfg), tierScores: { ...TIER_SCORE, ...(cfg.tierScores || {}) }, handicaps: Object.fromEntries(st.teams.map(t => [t.idx, t.handicap || 0])) };
+  if (!setup || !d.order) d.order = [...st.queue];
+  else d.order = d.order.filter(id => st.queue.includes(id)).concat(st.queue.filter(id => !d.order.includes(id)));   // 명단이 바뀌면 맞춤
+  const dis = !can || !setup || e.locked ? "disabled" : "";
+  const nPlayers = sigs.filter(x => !d.caps.includes(x.id) && !d.excluded.has(x.id)).length;
+  const slots = d.caps.length * (d.settings.teamSize - 1);
+  const teamsBy5 = Math.floor(sigs.length / 5), benchBy5 = sigs.length - teamsBy5 * 5;
+  const playing = sigs.filter(x => !d.caps.includes(x.id) && !d.excluded.has(x.id));
+  const gCnt = GRADES.map(g => playing.filter(x => d.grades[x.id] === g).length);
+  const recTeams = d.caps.length || Math.floor(sigs.length / 5);
+  const rec = recommendGrades(playing.map(x => ({ id: x.id, order: x.id, score: playerScore(x) })),
+    sigs.filter(x => !d.caps.includes(x.id) && d.excluded.has(x.id)).map(x => ({ id: x.id, order: x.id, score: playerScore(x) })), recTeams);
+  const unsaved = prepUnsaved(d, sigs);
+  const graded = gCnt.some(Boolean), noGrade = playing.filter(x => !GRADES.includes(d.grades[x.id])).length;
+  const members = window.members.filter(m => m.role !== "pending");
+  const S = d.settings;
+  // 명단 거르기·정렬 (화면에만 적용, 팀장 순서·티어 나누기에는 영향 없음)
+  if (!d.view) d.view = { q: "", show: "all", sort: "signup", dir: "asc" };
+  const V = d.view, capNo = id => d.caps.indexOf(id) + 1, isInc = x => capNo(x.id) > 0 || !d.excluded.has(x.id);
+  const tierIdx = t => { const i = TIER_OPTIONS.indexOf(t); return i < 0 ? -1 : i; };
+  const gradeIdx = x => capNo(x.id) ? 0 : GRADES.includes(d.grades[x.id]) ? GRADES.indexOf(d.grades[x.id]) + 1 : GRADES.length + 1;
+  const SORT_KEY = { signup: x => sigs.indexOf(x), score: x => playerScore(x), grade: gradeIdx, peak: x => tierIdx(x.peak), current: x => tierIdx(x.current), nick: x => String(x.nick || "") };
+  const q = V.q.trim().toLowerCase();
+  const shown = sigs.filter(x => {
+    if (q && !`${x.nick} ${x.discord_name} ${x.discord_username || ""}`.toLowerCase().includes(q)) return false;
+    const cap = capNo(x.id) > 0, inc = isInc(x);
+    if (V.show === "in") return inc && !cap;
+    if (V.show === "cap") return cap;
+    if (V.show === "bench") return !inc;
+    if (GRADES.includes(V.show)) return !cap && d.grades[x.id] === V.show;
+    if (V.show === "nograde") return inc && !cap && !GRADES.includes(d.grades[x.id]);
+    if (V.show === "todo") return !(isDone(x, "tier") && isDone(x, "score"));
+    return true;
+  }).sort((a, b) => {
+    const ka = SORT_KEY[V.sort](a), kb = SORT_KEY[V.sort](b);
+    const c = typeof ka === "string" ? ka.localeCompare(kb, "ko") : ka - kb;
+    return (c || sigs.indexOf(a) - sigs.indexOf(b)) * (V.dir === "desc" ? -1 : 1);
+  });
+  const SHOW_OPTS = [["all", "전체"], ["in", "경매 선수(포함)"], ["cap", "팀장만"], ["bench", "대기(빠진 사람)"], ...GRADES.map(g => [g, `경매 티어 ${g}`]), ["nograde", "경매 티어 없음"], ["todo", "검수 덜 된 사람"]];
+  const SORT_OPTS = [["signup", "신청 순"], ["score", "점수"], ["grade", "경매 티어"], ["peak", "최고 티어"], ["current", "현재 티어"], ["nick", "게임 닉네임"]];
+  const th = (key, label) => `<th class="sortable ${V.sort === key ? "on" : ""}" data-sort="${key}" title="눌러서 정렬">${label}${V.sort === key ? (V.dir === "asc" ? " ▲" : " ▼") : ""}</th>`;
+  $("tabBody").innerHTML = `
+    <div class="card">
+      <h3>진행자</h3>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span class="big-state" style="font-size:22px">${esc(detail.host.name || "아직 없음")}</span>
+        <span style="color:var(--muted);font-size:13px">경매 상태: ${STATUS_LABEL[st.status] || st.status}</span>
+        ${L ? `<a class="btn" target="_blank" href="${esc(pageLink("index.html", { a: e.id, k: L.host_key }))}" style="text-decoration:none">진행자 화면 열기</a>` : ""}
+        ${L && L.screen_key ? `<a class="btn" target="_blank" href="${esc(pageLink("screen.html", { a: e.id, k: L.screen_key }))}" style="text-decoration:none">방송 화면 열기</a>` : ""}
+      </div>
+      ${can ? `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="hostTo">${members.map(m => `<option value="${m.user_id}" ${m.user_id === detail.host.user_id ? "selected" : ""}>${esc(m.name)}${m.role === "owner" ? " (제작자)" : ""}</option>`).join("")}</select>
+        <button class="btn" id="btnHostTo">진행자 넘기기</button><span style="color:var(--muted);font-size:12px">진행자와 제작자만 경매 준비·회차 지우기·진행자 넘기기를 할 수 있어요.</span></div>`
+        : `<div style="color:var(--muted);font-size:13px">경매 준비는 이 회차의 진행자와 제작자만 할 수 있어요. 지금은 보기만 할 수 있어요.</div>`}
+    </div>
+
+    <div class="card prep-step ${!can || !setup ? "locked" : ""}">
+      <h3><span class="n">1</span>명단 · 팀장 · 핸디캡 → 경매 선수 채우기</h3>
+      ${setup ? "" : `<div class="warn-note">경매가 시작돼서 명단을 다시 채울 수 없어요. (진행자 화면의 ‘처음부터 다시’로 준비 단계로 돌아갈 수 있어요)</div>`}
+      <div class="prep-bar">신청 <b>${sigs.length}</b>명 → 5명 단위 <b>${teamsBy5}</b>팀 (${teamsBy5 * 5}명 참가${benchBy5 ? `, 늦게 신청한 ${benchBy5}명은 대기` : ""})
+        <button class="btn" id="btnSplit" ${dis || !sigs.length ? "disabled" : ""} style="margin-left:8px">5명 단위로 맞추기 (늦게 신청한 사람 대기)</button></div>
+      <div class="prep-bar">경매 티어 ${GRADES.map((g, i) => `${gradeBadge({ grade: g }, "sm")}<b>${gCnt[i]}</b>`).join(" ")}${graded && noGrade ? ` · 없음 <b>${noGrade}</b>` : ""}
+        ${graded && (noGrade || gCnt.some(x => x !== d.caps.length)) ? `<span class="warn"> — 경매 선수 모두에게 티어를 주고, 티어마다 팀 수(${d.caps.length})만큼 있어야 해요</span>` : graded ? `<span style="color:var(--ok)"> — 팀마다 A·B·C·D 한 명씩</span>` : `<span style="color:var(--muted)"> — 아직 안 정했어요 (안 정하면 티어 없이 경매)</span>`}
+        <button class="btn" id="btnGradeClear" ${dis || !graded ? "disabled" : ""} style="margin-left:8px">경매 티어 모두 비우기</button>
+        <div style="color:var(--muted);font-size:12px;margin-top:4px">경매 티어(A~D)는 진행자가 아래 표의 ‘경매 티어’ 칸에서 직접 골라요. 옆에 흐리게 보이는 ‘추천’은 점수 순으로 팀 수(${recTeams})만큼씩 나눈 참고용이에요.</div></div>
+      <div class="prep-bar">팀장 <b>${d.caps.length}</b>명 → 팀 <b>${d.caps.length}</b>개 · 경매 선수 <b>${nPlayers}</b>명 · 팀원 자리 ${slots}칸
+        ${d.caps.length && nPlayers !== slots ? `<span class="warn"> — 선수가 자리보다 ${Math.abs(nPlayers - slots)}명 ${nPlayers < slots ? "적어요 (빈자리가 남아도 경매는 할 수 있어요)" : "많아요 (남는 선수는 팀에 못 들어가요)"}</span>` : ""}</div>
+      <div class="toolbar prep-tools">
+        <input id="pSearch" placeholder="닉네임·디스코드 이름 찾기" value="${esc(V.q)}">
+        <select id="pShow">${SHOW_OPTS.map(([k, l]) => `<option value="${k}" ${V.show === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+        <select id="pSort">${SORT_OPTS.map(([k, l]) => `<option value="${k}" ${V.sort === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+        <button class="btn" id="pDir" type="button">${V.dir === "asc" ? "▲ 오름차순" : "▼ 내림차순"}</button>
+        <span style="color:var(--muted);font-size:12px">${shown.length} / ${sigs.length}명 보는 중${V.q || V.show !== "all" ? ` · <a href="#" id="pReset">거르기 풀기</a>` : ""}</span>
+      </div>
+      <div class="table-wrap"><table class="prep-table">
+        <thead><tr><th>포함</th><th>팀장 (누른 순서 = 팀 순서)</th><th>핸디캡</th>${th("grade", "경매 티어")}${th("nick", "게임 닉네임")}<th>디스코드</th>${th("peak", "최고")}${th("current", "현재")}${th("score", "점수")}<th>검수</th></tr></thead>
+        <tbody>${shown.map(x => { const no = d.caps.indexOf(x.id) + 1, inc = no > 0 || !d.excluded.has(x.id);
+          return `<tr class="${inc ? "" : "excluded"} ${no ? "cap" : ""}" data-sid="${x.id}">
+            <td><input type="checkbox" data-inc ${inc ? "checked" : ""} ${no ? "disabled" : ""} ${dis}></td>
+            <td><button class="star ${no ? "on" : ""}" data-cap ${dis}>${no ? `★ ${no}팀` : "★"}</button></td>
+            <td>${no ? `<input type="number" data-hc min="0" step="${S.bidStep}" value="${d.handicaps[x.id] || 0}" ${dis}>` : ""}</td>
+            <td>${no ? `<span style="color:var(--muted);font-size:12px">팀장</span>` : `<select data-grade ${dis}><option value="">-</option>${GRADES.map(g => `<option ${d.grades[x.id] === g ? "selected" : ""}>${g}</option>`).join("")}</select>${rec[x.id] ? `<span class="rec ${rec[x.id] === d.grades[x.id] ? "same" : ""}" title="점수 순 추천 (참고용)">추천 ${rec[x.id]}</span>` : ""}`}</td>
+            <td><b>${esc(x.nick)}</b>${!inc ? `<span class="bench-chip">대기</span>` : ""}</td><td>${esc(x.discord_name)}</td><td>${esc(x.peak)}</td><td>${esc(x.current)}</td>
+            <td><span class="score">${playerScore(x).toFixed(1)}</span>${x.score != null ? `<div class="calc">직접 정함</div>` : ""}</td>
+            <td>${isDone(x, "tier") && isDone(x, "score") ? `<span class="chip done">완료</span>` : `<span class="chip part">덜 됨</span>`}</td></tr>`; }).join("")
+          || `<tr><td colspan="10" style="color:var(--muted);padding:20px;text-align:center">${sigs.length ? "조건에 맞는 사람이 없어요." : "아직 신청이 없어요."}</td></tr>`}</tbody>
+      </table></div>
+      <div style="color:var(--muted);font-size:12px">티어·점수는 ‘참가자’ 탭의 ‘고치기’에서 바꿔요(부계정은 점수 직접 입력). 경매 선수를 채운 뒤에 고쳐도 경매 화면에 바로 반영돼요.</div>
+      ${d.conflict ? `<div class="warn-note" id="prepConflict">다른 운영자가 방금 경매 준비(팀장·대기·경매 티어)를 바꿨어요. 그 내용을 덮어쓰지 않도록 저장과 채우기를 막아 두었어요.
+        <button class="btn" id="btnPrepReload" style="margin-left:8px">다시 불러오기 (내가 바꾼 것은 사라짐)</button></div>` : ""}
+      <div class="save-row"><button class="btn ${unsaved ? "gold" : ""}" id="btnPrepSave" ${dis}>저장</button>
+        <span class="${unsaved ? "warn" : ""}" style="font-size:12px;${unsaved ? "" : "color:var(--muted)"}">${unsaved ? `저장 안 된 변경 ${unsaved}건 (팀장·포함/대기·경매 티어)` : "팀장·포함/대기·경매 티어가 저장돼 있어요. 핸디캡은 경매 선수 채우기 때 저장돼요."}</span></div>
+      <div><button class="btn primary" id="btnFill" ${!can || !setup || e.locked || !d.caps.length ? "disabled" : ""}>이 명단으로 경매 선수 채우기</button>
+        ${st.players.length ? `<span style="color:var(--muted);font-size:13px;margin-left:8px">지금: 팀 ${st.teams.length}개 (${st.teams.map(t => `${esc(t.name)} ${t.points}P`).join(", ")}) · 경매 선수 ${st.queue.length}명</span>` : ""}</div>
+    </div>
+
+    <div class="card prep-step ${!can ? "locked" : ""}">
+      <h3><span class="n">2</span>경매 설정</h3>
+      <div class="set-grid">
+        <label>시작 포인트<input type="number" data-set="startPoints" value="${S.startPoints}" ${dis}></label>
+        <label>입찰 단위<input type="number" data-set="bidStep" value="${S.bidStep}" ${dis}></label>
+        <label>팀 인원 (팀장 포함)<input type="number" data-set="teamSize" value="${S.teamSize}" ${dis}></label>
+        <label>빈자리 1칸당 남길 포인트<input type="number" data-set="reservePerSlot" value="${S.reservePerSlot}" ${dis}></label>
+      </div>
+      <div class="set-grid">
+        <label>선수마다 처음 시간(초)<input type="number" min="3" max="120" data-set="startSeconds" value="${S.startSeconds}" ${can && !e.locked ? "" : "disabled"}></label>
+        <label>입찰할 때마다 늘어나는 시간(초)<input type="number" min="1" max="60" data-set="bidAddSeconds" value="${S.bidAddSeconds}" ${can && !e.locked ? "" : "disabled"}></label>
+        <label>최대 시간(초)<input type="number" min="3" max="120" data-set="maxSeconds" value="${S.maxSeconds}" ${can && !e.locked ? "" : "disabled"}></label>
+      </div>
+      ${st.teams.length ? `<div class="set-grid">${st.teams.map(t => `<label style="color:${esc(t.color)}">${esc(t.name)} 핸디캡<input type="number" data-thc="${t.idx}" value="${S.handicaps[t.idx] ?? t.handicap}" ${dis}></label>`).join("")}</div>` : ""}
+      <div class="weight"><label>최고 티어 비율 <b id="wLabel"></b><input type="range" id="wRange" min="0" max="100" step="5" value="${Math.round(S.peakWeight * 100)}" ${can && !e.locked ? "" : "disabled"}></label><div class="calc" id="wEx"></div></div>
+      <div class="tier-grid">${Object.keys(TIER_SCORE).map(t => `<label>${t}<input type="number" step="0.5" min="0" max="1000" data-tier="${t}" value="${S.tierScores[t]}" ${can && !e.locked ? "" : "disabled"}></label>`).join("")}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="btnTierDef" ${can && !e.locked ? "" : "disabled"}>기본 점수표로</button><button class="btn primary" id="btnSetSave" ${can && !e.locked ? "" : "disabled"}>설정 저장</button>
+        <span style="color:var(--muted);font-size:12px">시작 포인트·입찰 단위·팀 인원·핸디캡은 경매 시작 전에만, 시간·점수표·비율은 언제든 바꿀 수 있어요(시간은 다음 선수부터 적용).</span></div>
+    </div>
+
+    <div class="card prep-step ${!can ? "locked" : ""}">
+      <h3><span class="n">3</span>팀장 링크</h3>
+      ${L ? (st.teams.length ? `<div><button class="btn primary" id="btnCopyAll">팀장 링크 한 번에 복사</button> <span style="color:var(--muted);font-size:12px">“팀장 이름: 링크” 줄로 복사돼요.</span></div>
+        ${st.teams.map((t, i) => L.team_keys[i] ? linkRow(captainLabel(st, t.idx), pageLink("team.html", { a: e.id, k: L.team_keys[i] }), t.color) : "").join("")}`
+        : `<div style="color:var(--muted)">1번에서 경매 선수를 채우면 팀장 수만큼 링크가 생겨요.</div>`)
+        : `<div style="color:var(--muted)">팀장 링크는 이 회차의 진행자와 제작자만 볼 수 있어요.</div>`}
+    </div>
+
+    <div class="card prep-step ${!can || !setup ? "locked" : ""}">
+      <h3><span class="n">4</span>경매 순서</h3>
+      ${setup ? `<ol class="order-edit">${d.order.map((id, i) => { const p = st.players.find(x => x.id === id); return p ? `<li data-oi="${i}"><span class="no">${i + 1}</span><span class="nm">${esc(p.name)} <span style="color:var(--muted);font-size:12px">${esc(p.pos)} · ${playerScore(p).toFixed(1)}</span></span>
+          <button data-mv="-1" ${i === 0 || dis ? "disabled" : ""}>▲</button><button data-mv="1" ${i === d.order.length - 1 || dis ? "disabled" : ""}>▼</button></li>` : ""; }).join("") || `<li style="color:var(--muted)">1번에서 경매 선수를 먼저 채워 주세요.</li>`}</ol>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="btnShuffle" ${dis || !d.order.length ? "disabled" : ""}>무작위로 섞기</button><button class="btn primary" id="btnOrderOk" ${dis || !d.order.length ? "disabled" : ""}>이 순서로 확정 (첫 선수가 진행자 화면에 올라감)</button>
+          <span style="color:var(--muted);font-size:12px">방송에서 추첨 연출을 보여 주고 싶으면, 확정하지 말고 진행자 화면의 ‘방송용 순서 추첨’을 쓰세요.</span></div>`
+        : `<div style="color:var(--muted)">순서가 정해졌어요. 경매는 진행자 화면에서 진행해요.</div>`}
+    </div>`;
+  updateW();
+  const body = $("tabBody");
+  $("pSearch").oninput = ev => { V.q = ev.target.value; const pos = ev.target.selectionStart; renderPrep(); const f = $("pSearch"); f.focus(); f.setSelectionRange(pos, pos); };
+  body.onclick = async ev => {
+    if (ev.target.matches("[data-copy]")) return copyBtn(ev);
+    const t = ev.target;
+    const sh = t.closest("[data-sort]");
+    if (sh) { if (V.sort === sh.dataset.sort) V.dir = V.dir === "asc" ? "desc" : "asc"; else { V.sort = sh.dataset.sort; V.dir = "asc"; } return renderPrep(); }
+    if (t.id === "pDir") { V.dir = V.dir === "asc" ? "desc" : "asc"; return renderPrep(); }
+    if (t.id === "pReset") { ev.preventDefault(); V.q = ""; V.show = "all"; return renderPrep(); }
+    const tr = t.closest("[data-sid]");
+    if (tr && t.closest("[data-cap]")) {
+      const id = Number(tr.dataset.sid), i = d.caps.indexOf(id);
+      if (i >= 0) d.caps.splice(i, 1); else if (d.caps.length >= 8) return toast("팀장은 8명까지예요."); else { d.caps.push(id); d.excluded.delete(id); }
+      return renderPrep();
+    }
+    if (t.id === "btnHostTo") {
+      const to = $("hostTo").value, name = $("hostTo").selectedOptions[0].textContent;
+      if (to === detail.host.user_id) return toast("이미 이 사람이 진행자예요.");
+      if (!confirm(`${name} 님에게 이 회차의 진행자를 넘길까요?`)) return;
+      return mutate("set_event_host", { p_id: e.id, p_user: to }).then(r => { if (r && r.ok) toast("진행자를 넘겼어요."); });
+    }
+    if (t.id === "btnFill") {
+      const bad = d.caps.find(id => (d.handicaps[id] || 0) >= S.startPoints);
+      if (bad !== undefined) return toast(`핸디캡은 시작 포인트(${S.startPoints}P)보다 작아야 해요.`);
+      if (graded && (noGrade || gCnt.some(x => x !== d.caps.length)))
+        return alert(`경매 티어는 팀 수(${d.caps.length})만큼씩 있어야 해요.\n\n지금: ${GRADES.map((g, i) => `${g} ${gCnt[i]}명`).join(" · ")}${noGrade ? ` · 티어 없음 ${noGrade}명` : ""}\n\n‘저장’은 그대로 저장돼요. 경매 선수 채우기는 티어를 맞춘 뒤에 눌러 주세요.`);
+      if (st.players.length && !confirm("지금 경매 선수 명단을 이 명단으로 바꿀까요?")) return;
+      const handicaps = {}; d.caps.forEach(id => { handicaps[id] = d.handicaps[id] || 0; });
+      const r = await hostAct("load_signups", { captains: d.caps, exclude: [...d.excluded], handicaps, grades: d.grades, base_sig: d.baseSig });
+      if (r && r.conflict) { d.conflict = true; return renderPrep(); }
+      if (r && r.ok) { d.settings = null; d.order = null; toast(`팀장 ${d.caps.length}명으로 경매 선수를 채웠어요.`); }
+      return;
+    }
+    if (t.id === "btnSplit") {
+      // 대기만 정함. 경매 티어(A~D)는 진행자가 표에서 직접 고름
+      const sp = splitGrades(sigs.map(x => ({ id: x.id, captain: d.caps.includes(x.id), order: x.id, score: playerScore(x) })), 5);
+      d.excluded = new Set(sp.bench); d.caps.forEach(id => { d.grades[id] = ""; });
+      if (S.teamSize !== 5) S.teamSize = 5;
+      toast(d.caps.length === sp.teams ? `${sp.teams}팀으로 맞추고 늦게 신청한 ${sp.bench.length}명을 대기로 뺐어요. 경매 티어(A~D)는 표에서 골라 주세요.`
+        : `${sigs.length}명이면 ${sp.teams}팀이에요. 팀장(★)을 ${sp.teams}명으로 맞춘 뒤 다시 눌러 주세요. (지금 ${d.caps.length}명)`);
+      return renderPrep();
+    }
+    if (t.id === "btnPrepSave") {
+      const grades = {}; sigs.forEach(x => { grades[x.id] = d.caps.includes(x.id) ? "" : d.grades[x.id] || ""; });
+      const r = await hostAct("save_prep", { captains: d.caps, exclude: [...d.excluded].filter(id => !d.caps.includes(id)), grades, base_sig: d.baseSig });
+      if (r && r.conflict) { d.conflict = true; return renderPrep(); }
+      if (r && r.ok) toast(st.players.length ? "저장했어요. 경매 화면에 반영하려면 ‘이 명단으로 경매 선수 채우기’를 다시 눌러 주세요." : "저장했어요.");
+      return;
+    }
+    if (t.id === "btnPrepReload") { loadDraftFromServer(d, sigs); toast("다른 운영자가 저장한 내용을 불러왔어요."); return renderPrep(); }
+    if (t.id === "btnGradeClear") { if (!confirm("모든 사람의 경매 티어(A~D)를 비울까요? (경매 선수 채우기를 눌러야 저장돼요)")) return; sigs.forEach(x => { d.grades[x.id] = ""; }); return renderPrep(); }
+    if (t.id === "btnTierDef") { S.tierScores = { ...TIER_SCORE }; return renderPrep(); }
+    if (t.id === "btnSetSave") return saveSettings();
+    if (t.id === "btnCopyAll") {
+      const text = [...body.querySelectorAll(".prep-step .link-row")].map(r => `${r.querySelector("b").textContent}: ${r.querySelector("input").value}`).join("\n");
+      try { await navigator.clipboard.writeText(text); } catch (err) { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+      t.textContent = "복사됨!"; return setTimeout(() => (t.textContent = "팀장 링크 한 번에 복사"), 1500);
+    }
+    const mv = t.closest("[data-mv]");
+    if (mv) { const i = Number(mv.closest("[data-oi]").dataset.oi), j = i + Number(mv.dataset.mv); [d.order[i], d.order[j]] = [d.order[j], d.order[i]]; return renderPrep(); }
+    if (t.id === "btnShuffle") { for (let i = d.order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d.order[i], d.order[j]] = [d.order[j], d.order[i]]; } return renderPrep(); }
+    if (t.id === "btnOrderOk") { const r = await hostAct("set_order", d.order); if (r && r.ok) toast("순서를 확정했어요. 진행자 화면에 첫 선수가 올라갔어요."); }
+  };
+  body.onchange = ev => {
+    if (ev.target.id === "pShow") { V.show = ev.target.value; return renderPrep(); }
+    if (ev.target.id === "pSort") { V.sort = ev.target.value; return renderPrep(); }
+    const tr = ev.target.closest("[data-sid]");
+    if (tr && ev.target.matches("[data-grade]")) { d.grades[Number(tr.dataset.sid)] = ev.target.value; return renderPrep(); }
+    if (tr && ev.target.matches("[data-inc]")) { const id = Number(tr.dataset.sid); if (ev.target.checked) d.excluded.delete(id); else d.excluded.add(id); renderPrep(); }
+  };
+  body.oninput = ev => {
+    const t = ev.target, tr = t.closest("[data-sid]");
+    if (tr && t.matches("[data-hc]")) d.handicaps[Number(tr.dataset.sid)] = Math.max(0, Math.floor(Number(t.value) || 0));
+    if (t.dataset.set) S[t.dataset.set] = Number(t.value);
+    if (t.dataset.thc !== undefined) S.handicaps[t.dataset.thc] = Math.max(0, Math.floor(Number(t.value) || 0));
+    if (t.dataset.tier) { S.tierScores[t.dataset.tier] = Number(t.value); updateW(); }
+    if (t.id === "wRange") { S.peakWeight = Number(t.value) / 100; updateW(); }
+  };
+  function updateW() {
+    $("wLabel").textContent = `${Math.round(S.peakWeight * 100)}% (현재 티어 ${Math.round((1 - S.peakWeight) * 100)}%)`;
+    $("wEx").textContent = `예: 최고 불멸 3 / 현재 초월자 2 → ${scoreFormula({ peak: "불멸 3", current: "초월자 2" }, { tierScores: S.tierScores, peakWeight: S.peakWeight })}점`;
+  }
+  async function saveSettings() {
+    const arg = { tierScores: {}, peakWeight: S.peakWeight };
+    for (const t of Object.keys(TIER_SCORE)) { const v = Number(S.tierScores[t]); if (!(v >= 0 && v <= 1000)) return toast(`${t} 점수를 0에서 1000 사이로 적어 주세요.`); arg.tierScores[t] = v; }
+    for (const k of ["startSeconds", "bidAddSeconds", "maxSeconds"]) { if (!Number.isInteger(S[k])) return toast("시간은 초 단위 정수로 적어 주세요."); arg[k] = S[k]; }
+    if (S.startSeconds > S.maxSeconds) return toast("처음 시간은 최대 시간보다 길 수 없어요.");
+    if (setup) for (const k of ["startPoints", "bidStep", "teamSize", "reservePerSlot"]) { if (!Number.isInteger(S[k])) return toast("시작 포인트·입찰 단위·팀 인원·빈자리 몫은 정수로 적어 주세요."); arg[k] = S[k]; }
+    const r = await hostAct("set_config", arg);
+    if (!r || !r.ok) return;
+    if (setup) for (const t of detail.state.teams) {
+      const want = S.handicaps[t.idx] ?? 0;
+      if ((t.handicap || 0) !== want) { const h = await hostAct("set_handicap", { team: t.idx, amount: want }); if (!h || !h.ok) return; }
+    }
+    d.settings = null; toast("경매 설정을 저장했어요. 팀장 화면에 바로 보여요."); renderPrep();
+  }
+}
+
+/* ---------- 경매 결과 (결과 화면 + 엑셀) ---------- */
+function renderResult() {
+  const st = detail.state, done = st.status === "done";
+  setScoreConfig(st.config);
+  if (!st.teams.length) { $("tabBody").innerHTML = `<div class="empty-view">아직 경매 선수를 채우지 않았어요. ‘경매 준비’ 탭에서 시작하세요.</div>`; return; }
+  $("tabBody").innerHTML = `<div class="result-box">
+      <div class="result-head"><h2>${done ? "경매 <span>결과</span>" : "지금까지의 <span>팀 구성</span>"}</h2>
+        <button class="btn gold big" id="btnXlsx">엑셀로 내려받기</button><button class="btn big" id="btnPng">이미지로 저장</button>
+        <span class="state-line">${done ? "경매가 끝났어요." : `경매가 아직 안 끝났어요 (${STATUS_LABEL[st.status] || st.status}). 지금 상태로 받을 수 있어요.`}</span></div>
+      ${resultHtml(st)}</div>`;
+  $("btnPng").onclick = () => saveResultImage(st, detail.event.title).then(() => toast("결과 이미지를 저장했어요.")).catch(() => toast("이미지를 만들지 못했어요."));
+  $("btnXlsx").onclick = () => { const k = downloadResultXlsx(st, detail.event.title); toast(k === "xlsx" ? "엑셀 파일을 내려받았어요." : "엑셀 도구를 못 불러와서 CSV로 내려받았어요."); };
+}
+
+/* ---------- 일정 · 신청 마감 ---------- */
+function renderSchedule() {
+  const e = detail.event;
+  $("tabBody").innerHTML = `
+    <div class="card">
+      <h3>신청 받기</h3>
+      <div class="big-state" style="color:${e.open ? "var(--ok)" : "var(--warn)"}">${e.open ? "지금 신청을 받고 있어요" : "지금은 신청이 닫혀 있어요"}</div>
+      <div class="seg" id="modeSeg">
+        ${[["auto", "일정대로 자동"], ["open", "지금 열기"], ["closed", "지금 마감"]].map(([k, l]) => `<button data-mode="${k}" class="${e.signup_mode === k ? "on" : ""}" ${e.locked ? "disabled" : ""}>${l}</button>`).join("")}
+      </div>
+      <div style="color:var(--muted);font-size:13px;line-height:1.6">
+        ‘일정대로 자동’이면 아래 신청 시작 시각에 열리고 신청 마감 시각에 닫혀요. (비워 두면 그쪽은 제한 없음)<br>
+        ‘지금 열기’·‘지금 마감’은 시각과 상관없이 바로 적용돼요.
+      </div>
+    </div>
+    <div class="card">
+      <h3>회차 일정</h3>
+      <div class="field"><label>회차 이름</label><input id="sTitle" maxlength="60" value="${esc(e.title)}"></div>
+      <div class="form-grid">
+        <div class="field"><label>신청 시작</label><input type="datetime-local" id="sOpen" value="${toLocalInput(e.opens_at)}"></div>
+        <div class="field"><label>신청 마감</label><input type="datetime-local" id="sClose" value="${toLocalInput(e.closes_at)}"></div>
+        <div class="field"><label>경매 일시</label><input type="datetime-local" id="sAuction" value="${toLocalInput(e.auction_at)}"></div>
+        <div class="field"><label>경기 일시</label><input type="datetime-local" id="sMatch" value="${toLocalInput(e.match_at)}"></div>
+      </div>
+      <div><button class="btn primary" id="btnSchedSave" ${e.locked ? "disabled" : ""}>일정 저장</button></div>
+      <div style="color:var(--muted);font-size:12px">신청 화면에도 신청 기간과 경매 일시가 표시돼요.</div>
+    </div>
+    ${detail.can_host ? `<div class="card"><h3>선수 사진 지우기 (저장 공간 아끼기)</h3>
+      <div style="color:var(--muted);font-size:13px;line-height:1.6">이 회차 선수들의 사진만 지워요. 명단·결과·엑셀은 그대로이고, 사진 자리에는 디스코드 프로필 사진이나 이름 첫 글자가 나와요. 끝난 회차에 쓰면 좋아요.</div>
+      <div><button class="btn" id="btnPurgePhotos">이 회차 선수 사진 지우기</button></div></div>` : ""}
+    ${detail.can_host ? `<div class="card danger"><h3>회차 지우기</h3>
+      <div style="color:var(--muted);font-size:13px;line-height:1.6">이 회차의 신청 명단·검수·할 일·경매 결과·채팅·팀장 링크가 모두 지워지고 되돌릴 수 없어요. 진행 기록은 남아요.<br>이 회차의 진행자와 제작자만 지울 수 있어요.</div>
+      <div><button class="btn" id="btnDeleteEvent" style="color:#ff8c96;border-color:rgba(255,70,85,.5)">이 회차 지우기</button></div></div>` : ""}`;
+  if ($("btnPurgePhotos")) $("btnPurgePhotos").onclick = async () => {
+    if (!confirm("이 회차 선수 사진을 모두 지울까요? 되돌릴 수 없어요.")) return;
+    const r = await call("purge_photos", { p_id: e.id });
+    if (!r) return;
+    if (!r.ok) return toast(r.reason);
+    toast(r.count ? `사진 ${r.count}장(약 ${Math.round(r.bytes / 1024)}KB)을 지웠어요.` : "지울 사진이 없어요.");
+    ping(); lastSig = ""; refresh();
+  };
+  if ($("btnDeleteEvent")) $("btnDeleteEvent").onclick = async () => {
+    const name = e.title || "이름 없는 회차";
+    const typed = prompt(`정말 지울까요? 확인을 위해 회차 이름을 똑같이 적어 주세요.\n\n${name}`);
+    if (typed === null) return;
+    const r = await call("delete_event", { p_id: e.id, p_confirm: typed });
+    if (!r) return;
+    if (!r.ok) return toast(r.reason);
+    toast(`‘${name}’ 회차를 지웠어요.`);
+    ping(); selected = null; lastSig = "";
+    try { localStorage.removeItem("valo-console-event"); } catch (err) { /* 무시 */ }
+    refresh();
+  };
+  $("modeSeg").onclick = ev => { const b = ev.target.closest("[data-mode]"); if (b) mutate("update_event", { p_id: e.id, p_patch: { signup_mode: b.dataset.mode } }); };
+  $("btnSchedSave").onclick = () => {
+    const o = $("sOpen").value, c = $("sClose").value;
+    if (o && c && new Date(c) <= new Date(o)) return toast("신청 마감이 신청 시작보다 뒤여야 해요.");
+    mutate("update_event", { p_id: e.id, p_patch: { title: $("sTitle").value, opens_at: fromLocalInput(o), closes_at: fromLocalInput(c), auction_at: fromLocalInput($("sAuction").value), match_at: fromLocalInput($("sMatch").value) } })
+      .then(r => { if (r && r.ok) toast("일정을 저장했어요."); });
+  };
+}
+
+/* ---------- 할 일 ---------- */
+function memberOptions(sel) {
+  return `<option value="">담당자 없음</option>` + members.filter(m => m.role !== "pending")
+    .map(m => `<option value="${m.user_id}" ${m.user_id === sel ? "selected" : ""}>${esc(m.name)}</option>`).join("");
+}
+function renderTasks() {
+  const now = Date.now();
+  const list = detail.tasks.filter(t => !myOnly || t.assignee === me.user_id);
+  $("tabBody").innerHTML = `
+    <div class="form-row">
+      <input type="text" id="tTitle" maxlength="100" placeholder="할 일 (예: 맵 정하기, 공지 올리기)">
+      <select id="tWho">${memberOptions(null)}</select>
+      <input type="datetime-local" id="tDue" title="언제까지">
+      <button class="btn primary" id="btnTaskAdd">추가</button>
+    </div>
+    <label class="chk" style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:10px"><input type="checkbox" id="tMine" ${myOnly ? "checked" : ""}> 내 할 일만 보기</label>
+    <ul class="tasks">${list.length ? list.map(t => `
+      <li class="${t.done ? "done" : ""} ${!t.done && t.due_at && t.due_at < now ? "late" : ""}" data-task="${t.id}">
+        <input type="checkbox" data-done ${t.done ? "checked" : ""}>
+        <div><div class="tt">${esc(t.title)}</div><div class="due">${t.due_at ? `${fmt(t.due_at)}까지${!t.done && t.due_at < now ? " · 기한 지남" : ""}` : "기한 없음"} · ${esc(t.created_by)} 님이 추가</div></div>
+        <select data-who>${memberOptions(t.assignee)}</select>
+        <span class="due">${t.assignee ? "" : "담당자 정해 주세요"}</span>
+        <button class="x" data-x title="지우기">×</button>
+      </li>`).join("") : `<li style="display:block;color:var(--muted)">할 일이 없어요.</li>`}</ul>`;
+  $("btnTaskAdd").onclick = async () => {
+    const title = $("tTitle").value.trim(); if (!title) return toast("할 일 내용을 적어 주세요.");
+    const r = await mutate("task_add", { p_id: detail.event.id, p_title: title, p_assignee: $("tWho").value || null, p_due: fromLocalInput($("tDue").value) });
+    if (r && r.ok) toast("할 일을 추가했어요.");
+  };
+  $("tTitle").onkeydown = ev => { if (ev.key === "Enter") $("btnTaskAdd").click(); };
+  $("tMine").onchange = ev => { myOnly = ev.target.checked; renderTasks(); };
+  const ul = $("tabBody").querySelector(".tasks");
+  ul.onchange = ev => {
+    const li = ev.target.closest("[data-task]"); if (!li) return;
+    const id = Number(li.dataset.task);
+    if (ev.target.matches("[data-done]")) mutate("task_update", { p_task: id, p_patch: { done: ev.target.checked } });
+    if (ev.target.matches("[data-who]")) mutate("task_update", { p_task: id, p_patch: { assignee: ev.target.value || null } });
+  };
+  ul.onclick = ev => {
+    const li = ev.target.closest("[data-task]");
+    if (li && ev.target.matches("[data-x]") && confirm("이 할 일을 지울까요?")) mutate("task_delete", { p_task: Number(li.dataset.task) });
+  };
+}
+
+/* ---------- 진행 기록: 누가 언제 무엇을 고쳤는지 ---------- */
+function actClass(a) {
+  if (/지움|거절|뺌|취소/.test(a)) return "a-del";
+  if (/추가|만듦|접수|등록/.test(a)) return "a-add";
+  if (/검수|재확인/.test(a)) return "a-check";
+  if (/운영진|운영자|초대|진행자|제작자/.test(a)) return "a-staff";
+  return "a-edit";
+}
+function logItems(list, showEvent, scope) {
+  if (logsFor !== scope) return `<li style="display:block;color:var(--muted)">기록을 불러오는 중…</li>`;
+  const q = logSearch.trim().toLowerCase();
+  const rows = list.filter(l => !q || `${l.who} ${l.action} ${l.detail} ${l.event || ""}`.toLowerCase().includes(q));
+  return rows.length ? rows.map(l => `<li>
+      <span class="when">${new Date(l.at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+      <span class="who">${esc(l.who)}</span>
+      <span class="act ${actClass(l.action)}">${esc(l.action)}${showEvent && l.event ? `<span class="ev">${esc(l.event)}</span>` : ""}</span>
+      <span class="detail">${esc(l.detail)}</span></li>`).join("")
+    : `<li style="display:block;color:var(--muted)">${q ? "찾는 기록이 없어요." : "아직 기록이 없어요."}</li>`;
+}
+function logToolbar() {
+  return `<div class="toolbar"><input id="logSearch" placeholder="사람·내용으로 찾기 (예: 티어, 닉네임)" value="${esc(logSearch)}" style="min-width:260px">
+    <button class="btn" id="btnLogCsv" type="button">CSV로 내려받기</button>
+    <span style="color:var(--muted);font-size:12px">최근 기록부터 보여요. 기록은 고치거나 지울 수 없어요. 내려받은 파일은 엑셀·구글 시트에서 열 수 있어요.</span></div>`;
+}
+
+// 진행 기록을 CSV 파일로 내려받기 (엑셀에서 한글이 깨지지 않게 BOM을 붙임)
+const CSV_MAX = 1000;     // 서버가 한 번에 주는 최대 개수
+async function downloadLogCsv(scope) {
+  const btn = $("btnLogCsv"); if (btn) { btn.disabled = true; btn.textContent = "만드는 중…"; }
+  const list = await call("get_log", { p_id: scope === "site" ? null : scope, p_limit: CSV_MAX });
+  if (btn) { btn.disabled = false; btn.textContent = "CSV로 내려받기"; }
+  if (!Array.isArray(list)) return toast("기록을 불러오지 못했어요.");
+  if (!list.length) return toast("내려받을 기록이 없어요.");
+  const rows = [["시각", "회차", "한 사람", "한 일", "내용"]]
+    .concat(list.slice().reverse().map(l => [csvStamp(l.at), l.event || (scope === "site" ? "사이트 전체" : (detail && detail.event.title) || ""), l.who, l.action, l.detail]));
+  saveCsv(rows, `auction-log_${scope === "site" ? "all" : "round"}`);
+  toast(list.length >= CSV_MAX ? `최근 ${CSV_MAX}개 기록을 내려받았어요.` : `기록 ${list.length}개를 내려받았어요.`);
+}
+
+// 참가자 명단을 CSV로 (시트에서 포인트 계산할 때 쓰기 좋게)
+function downloadPeopleCsv() {
+  if (!detail || !detail.signups.length) return toast("내려받을 신청이 없어요.");
+  const names = (x, kind) => checksOf(x, kind).map(c => c.name).join(" / ");
+  const rows = [["번호", "게임 닉네임", "디스코드 이름", "디스코드 아이디", "최고 티어", "현재 티어", "포지션", "주 요원", "경매 티어", "대기(대타)",
+                 "티어 점수(최종)", "자동 점수", "직접 정한 점수", "팀장", "티어 검수", "티어 검수한 사람", "점수 재확인", "점수 재확인한 사람", "메모", "신청 시각"]]
+    .concat(detail.signups.map((x, i) => [i + 1, x.nick, x.discord_name, x.discord_username ? "@" + x.discord_username : "", x.peak, x.current, x.pos, agentsOf(x).join(", "), x.grade || "", x.bench ? "대기" : "",
+      playerScore(x).toFixed(1), autoScore(x).toFixed(1), x.score != null ? Number(x.score).toFixed(1) : "", x.captain ? "팀장" : "",
+      `${checksOf(x, "tier").length}/${needChecks()}${isDone(x, "tier") ? " 완료" : ""}`, names(x, "tier"),
+      `${checksOf(x, "score").length}/${needChecks()}${isDone(x, "score") ? " 완료" : ""}`, names(x, "score"), x.memo || "", csvStamp(x.at)]));
+  saveCsv(rows, "signups");
+  toast(`신청 ${detail.signups.length}명을 내려받았어요.`);
+}
+
+// CSV 공통: 엑셀 한글 깨짐 방지(BOM), 쉼표·따옴표·줄바꿈이 든 칸은 따옴표로 감쌈
+const csvPad = n => String(n).padStart(2, "0");
+function csvStamp(ms) { if (!ms) return ""; const d = new Date(ms); return `${d.getFullYear()}-${csvPad(d.getMonth() + 1)}-${csvPad(d.getDate())} ${csvPad(d.getHours())}:${csvPad(d.getMinutes())}:${csvPad(d.getSeconds())}`; }
+function saveCsv(rows, prefix) {
+  const cell = v => { const t = String(v ?? ""); return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+  const csv = "\uFEFF" + rows.map(r => r.map(cell).join(",")).join("\r\n");
+  // 파일 이름은 영문으로 (한글 파일 이름을 "download"로 바꿔 버리는 브라우저가 있음). 내용은 한글 그대로
+  const d = new Date();
+  const name = `${prefix}_${d.getFullYear()}${csvPad(d.getMonth() + 1)}${csvPad(d.getDate())}-${csvPad(d.getHours())}${csvPad(d.getMinutes())}.csv`;
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a"); a.href = url; a.download = name; a.style.display = "none";
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 4000);   // 바로 지우면 파일 이름을 못 읽는 브라우저가 있음
+}
+function bindLogSearch(rerender) {
+  $("logSearch").oninput = ev => { logSearch = ev.target.value; const pos = ev.target.selectionStart; rerender(); const f = $("logSearch"); f.focus(); f.setSelectionRange(pos, pos); };
+}
+function renderLog() {
+  $("tabBody").innerHTML = logToolbar() + `<ul class="log-list">${logItems(logs, false, selected)}</ul>`;
+  bindLogSearch(renderLog);
+  $("btnLogCsv").onclick = () => downloadLogCsv(selected);
+}
+
+/* ---------- 링크 ---------- */
+function pageLink(file, params) { const u = new URL(file, location.href); u.search = new URLSearchParams(params).toString(); u.hash = ""; return u.toString(); }
+function linkRow(label, url, color) { return `<div class="link-row" style="--c:${color || "var(--line)"}"><b>${esc(label)}</b><input readonly value="${esc(url)}"><button class="btn" data-copy>복사</button></div>`; }
+function renderLinks() {
+  const e = detail.event, L = detail.links;
+  let html = `<div class="card"><h3>참가 신청 (디스코드 서버에 올리기)</h3>${linkRow("참가 신청 링크", pageLink("signup.html", { s: e.signup_code }), "#5865f2")}</div>`;
+  if (L) {
+    html += `<div class="card"><h3>경매 당일 (이 회차 진행자·제작자만 보여요)</h3>${linkRow("진행자 화면", pageLink("index.html", { a: e.id, k: L.host_key }), "var(--accent)")}
+      ${L.screen_key ? `${linkRow("방송 화면 (OBS)", pageLink("screen.html", { a: e.id, k: L.screen_key }), "var(--gold)")}<div style="color:var(--muted);font-size:12px">방송 화면은 보기만 되는 링크예요. OBS에서 ‘소스 추가 → 브라우저’에 붙여 넣고 너비 1920, 높이 1080으로 두세요.</div>`
+        : `<div style="color:var(--warn);font-size:12px">방송 화면 링크를 만들려면 setup.sql을 한 번 더 실행해 주세요.</div>`}
+      </div>
+    <div class="card"><h3>팀장 링크 (팀장 ${detail.state.teams.length}명)</h3>
+      ${detail.state.teams.length ? `<div><button class="btn primary" id="btnCopyTeamLinks">팀장 링크 한 번에 복사</button> <span style="color:var(--muted);font-size:12px">“팀장 이름: 링크” 줄로 복사돼요. 각 팀장에게 자기 링크만 보내 주세요.</span></div>
+        <div id="teamLinkRows">${detail.state.teams.map(t => L.team_keys[t.idx] ? linkRow(captainLabel(detail.state, t.idx), pageLink("team.html", { a: e.id, k: L.team_keys[t.idx] }), t.color) : "").join("")}</div>`
+        : `<div style="color:var(--muted);line-height:1.6">‘경매 준비’ 탭에서 팀장(★)을 정하고 <b>이 명단으로 경매 선수 채우기</b>를 누르면 팀장 수만큼 링크가 생겨요.<br>채우기 전에는 어느 링크가 어느 팀인지 정해지지 않아서 보여 주지 않아요.</div>`}</div>`;
+  } else html += `<div class="card"><h3>경매 당일</h3><div style="color:var(--muted)">진행자 화면과 팀장 링크는 이 회차의 진행자와 제작자만 볼 수 있어요.</div></div>`;
+  $("tabBody").innerHTML = html;
+  $("tabBody").onclick = async ev => {
+    if (ev.target.id === "btnCopyTeamLinks") {
+      const text = [...$("teamLinkRows").querySelectorAll(".link-row")].map(r => `${r.querySelector("b").textContent}: ${r.querySelector("input").value}`).join("\n");
+      try { await navigator.clipboard.writeText(text); } catch (err) { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+      ev.target.textContent = "복사됨!"; return setTimeout(() => (ev.target.textContent = "팀장 링크 한 번에 복사"), 1500);
+    }
+    return copyBtn(ev);
+  };
+}
+async function copyBtn(ev) {
+  if (!ev.target.matches("[data-copy]")) return;
+  const input = ev.target.parentElement.querySelector("input");
+  try { await navigator.clipboard.writeText(input.value); } catch (err) { input.select(); document.execCommand("copy"); }
+  ev.target.textContent = "복사됨"; setTimeout(() => (ev.target.textContent = "복사"), 1500);
+}
+
+/* ---------- 운영자 관리 (제작자: 초대·승인·빼기) ---------- */
+let staffRenderSeq = 0;
+async function renderStaff() {
+  const seq = ++staffRenderSeq;
+  let invite = "";
+  const canInvite = me.role === "owner" || me.can_invite;   // 제작자와 진행자(모든 회차 진행 권한 포함)는 초대·승인
+  if (canInvite) { const r = await call("get_invite", { p_reset: false }); if (r && r.code) invite = pageLink("admin.html", { invite: r.code }); }
+  if (seq !== staffRenderSeq || view !== "staff") return;     // 더 새로 그린 화면이 있으면 옛 화면은 버림
+  const owner = me.role === "owner";
+  const pending = members.filter(m => m.role === "pending"), active = members.filter(m => m.role !== "pending");
+  const person = (m, btns) => `<li>${discordImg(m.avatar, m.name, 34)}<div class="grow"><b>${esc(m.name)}</b> ${m.username ? `<span style="color:var(--muted);font-size:12px">@${esc(m.username)}</span>` : ""}</div>${btns}</li>`;
+  $("view").innerHTML = `
+    <div class="ev-head"><h2>운영자 ${canInvite ? "관리" : "명단"}</h2></div>
+    <div class="card"><h3>서비스 상태 (Supabase 무료 요금제)</h3><div id="svcCard" style="display:grid;gap:10px">${svcCardHtml()}</div></div>
+    ${canInvite ? `<div class="card"><h3>운영자 초대 링크</h3>
+      ${linkRow("초대 링크", invite, "var(--ok)")}
+      <div style="color:var(--muted);font-size:13px;line-height:1.6">운영자에게 이 링크를 보내면, 디스코드로 로그인해 요청을 보내요. 아래에서 승인해야 들어올 수 있어요.<br>링크가 새어 나갔다면 새 링크로 바꾸세요. 예전 링크는 바로 쓸 수 없게 돼요.</div>
+      ${owner ? `<div><button class="btn" id="btnInviteReset">새 링크로 바꾸기</button></div>` : `<div style="color:var(--muted);font-size:12px">링크 바꾸기와 운영자 빼기는 제작자만 할 수 있어요.</div>`}</div>
+    <div class="card"><h3>승인 기다리는 사람 ${pending.length}명</h3>
+      <ul class="people">${pending.length ? pending.map(m => person(m, `<button class="btn primary" data-dec="approve" data-u="${m.user_id}">승인</button><button class="btn" data-dec="reject" data-u="${m.user_id}">거절</button>`)).join("") : `<li style="color:var(--muted)">없어요.</li>`}</ul></div>` : ""}
+    <div class="card"><h3>운영자 ${active.length}명</h3>
+      <ul class="people">${active.map(m => person(m, m.role === "owner" ? `<span class="role owner">제작자</span>`
+        : `${m.all_host ? `<span class="role all">모든 회차 진행</span>` : ""}<span class="role staff">운영자</span>${owner
+          ? `<button class="btn" data-allhost="${m.all_host ? 0 : 1}" data-u="${m.user_id}">${m.all_host ? "모든 회차 진행 권한 빼기" : "모든 회차 진행 권한 주기"}</button><button class="btn" data-dec="remove" data-u="${m.user_id}">빼기</button>` : ""}`)).join("")}</ul>
+      ${owner ? `<div style="color:var(--muted);font-size:12px;line-height:1.6">‘모든 회차 진행 권한’을 받은 운영자는 제작자처럼 모든 회차의 경매 준비·진행자 화면·팀장 링크·회차 지우기를 할 수 있고, 운영자 초대·승인도 할 수 있어요.</div>` : ""}</div>
+    <div class="card"><h3>전체 진행 기록 (모든 회차 + 운영자 승인 등)</h3>${logToolbar()}<ul class="log-list" id="siteLog">${logItems(logs, true, "site")}</ul></div>`;
+  bindLogSearch(() => { $("siteLog").innerHTML = logItems(logs, true, "site"); });
+  $("btnLogCsv").onclick = () => downloadLogCsv("site");
+  $("view").onclick = async ev => {
+    if (ev.target.matches("[data-copy]")) return copyBtn(ev);
+    const ah = ev.target.closest("[data-allhost]");
+    if (ah) { await mutate("set_all_host", { p_user: ah.dataset.u, p_on: ah.dataset.allhost === "1" }); return renderStaff(); }
+    const b = ev.target.closest("[data-dec]");
+    if (b) {
+      if (b.dataset.dec === "remove" && !confirm("이 사람을 운영자에서 뺄까요?")) return;
+      await mutate("staff_decide", { p_user: b.dataset.u, p_action: b.dataset.dec });
+      return renderStaff();
+    }
+    if (ev.target.id === "btnSvcRe") { ev.target.disabled = true; await pingService(); return; }
+    if (ev.target.id === "btnInviteReset" && confirm("새 초대 링크로 바꿀까요? 예전 링크는 더 이상 쓸 수 없어요.")) { await call("get_invite", { p_reset: true }); renderStaff(); }
+  };
+}
+$("btnStaff").onclick = () => { view = "staff"; lastSig = ""; render(); refresh(); };
+
+/* ---------- 새 회차 ---------- */
+$("btnNewEvent").onclick = () => { $("nTitle").value = ""; $("newModal").classList.add("show"); setTimeout(() => $("nTitle").focus(), 50); };
+$("btnNewSave").onclick = async () => {
+  const title = $("nTitle").value.trim(); if (!title) return toast("회차 이름을 적어 주세요.");
+  const r = await call("create_event", { p_title: title, p_config: CONFIG });
+  if (!r || !r.ok) return toast(r ? r.reason : "만들지 못했어요.");
+  $("newModal").classList.remove("show");
+  ping(); tab = "schedule"; selectEvent(r.id);
+};
+document.querySelectorAll(".modal").forEach(m => m.addEventListener("click", ev => { if (ev.target === m || ev.target.matches("[data-close]")) m.classList.remove("show"); }));
+
+boot();
+</script>
+</body>
+</html>

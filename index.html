@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내전 경매 · 진행자</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css?v=dev">
+</head>
+<body>
+
+<!-- 홈 화면 (링크 없이 들어왔을 때) -->
+<div class="home" id="landing" hidden>
+  <section class="home-hero">
+    <div class="kicker">VALORANT 내전</div>
+    <h1>선수 <span>경매</span></h1>
+    <p>디스코드로 신청 받고, 팀장들이 폰으로 실시간 입찰해 팀을 꾸려요.</p>
+    <div class="home-steps"><span><b>1</b>신청</span><i></i><span><b>2</b>경매 준비</span><i></i><span><b>3</b>실시간 경매</span><i></i><span><b>4</b>결과 엑셀</span></div>
+  </section>
+  <div class="home-msg" id="landingMsg" hidden></div>
+  <section class="home-cards">
+    <a class="home-card lead" href="admin.html">
+      <small>운영자</small><b>운영자 콘솔</b>
+      <span>회차 만들기 · 신청 관리 · 티어 나누기 · 경매 준비 · 링크 · 결과</span>
+      <em>들어가기</em>
+    </a>
+    <a class="home-card" href="practice.html">
+      <small>혼자 해 보기</small><b>연습판</b>
+      <span>서버 없이 한 화면에서 같은 규칙으로 경매를 끝까지 돌려 봐요</span>
+      <em>연습하기</em>
+    </a>
+    <div class="home-card info">
+      <small>링크로 들어오는 사람</small><b>받은 링크로 들어와요</b>
+      <ul>
+        <li><i class="dot" style="--c:#5865f2"></i><span><b>참가자</b> 디스코드에 올라온 신청 링크</span></li>
+        <li><i class="dot" style="--c:#ff4655"></i><span><b>팀장</b> 진행자에게 받은 팀장 링크</span></li>
+        <li><i class="dot" style="--c:#ffd166"></i><span><b>방송</b> 콘솔 ‘링크’ 탭의 방송 화면 (OBS)</span></li>
+      </ul>
+    </div>
+  </section>
+  <section class="home-docs">
+    <h3>사용 설명서</h3>
+    <div><a href="https://github.com/Randevu123/Tournament-Auction/blob/main/docs/운영자-안내서.md" target="_blank" rel="noopener">운영자 안내서<span>신청 관리 · 검수 · 할 일</span></a>
+      <a href="https://github.com/Randevu123/Tournament-Auction/blob/main/docs/진행자-안내서.md" target="_blank" rel="noopener">진행자 안내서<span>경매 준비 · 진행 · 방송 · 결과</span></a>
+      <a href="https://github.com/Randevu123/Tournament-Auction/blob/main/docs/제작자-안내서.md" target="_blank" rel="noopener">제작자 안내서<span>운영자 초대 · 서버 · 개인정보</span></a></div>
+  </section>
+  <section class="home-saved" id="savedBox" hidden>
+    <h3>이 브라우저에서 연 경매</h3>
+    <ul id="savedList"></ul>
+  </section>
+  <details class="home-legacy"><summary>제작자 등록 전용: 콘솔 없이 경매 바로 만들기</summary>
+    <p>제작자를 등록한 뒤에는 운영자 콘솔에서만 회차를 만들 수 있어요.</p>
+    <button class="btn" id="btnCreate">새 온라인 경매 만들기</button>
+  </details>
+  <p class="riot-notice" id="homeNotice"></p>
+</div>
+
+<div id="app" hidden>
+<header>
+  <a class="home-btn" href="index.html" title="홈으로">홈</a>
+  <div class="logo">VALORANT <span>내전 경매</span></div>
+  <span class="badge">진행자</span>
+  <span class="conn" id="conn">연결 중…</span>
+  <div class="spacer"></div>
+  <div class="ctrl">
+    <span class="state-line" id="progress"></span>
+    <button class="btn" id="btnSignups">신청 명단 <b id="signupCount">0</b></button>
+    <button class="btn" id="btnLinks">팀장 링크</button>
+    <a class="btn" id="btnConsole" style="text-decoration:none">운영자 콘솔</a>
+    <button class="btn" id="btnEdit">선수 관리</button>
+    <button class="btn primary" id="btnStart">경매 시작 (Space)</button>
+    <button class="btn" id="btnPause">일시정지</button>
+    <button class="btn gold" id="btnHammer">지금 마감</button>
+    <button class="btn" id="btnNext">다음 선수</button>
+    <button class="btn" id="btnUndo" title="가장 최근 결과부터 하나씩 취소하고 그 선수를 다시 경매해요 (최근 30개). 지금 선수에게 입찰이 있어도 됩니다(그 입찰은 취소).">결과 되돌리기</button>
+    <label class="chk"><input type="checkbox" id="autoNext"> 다음 선수 자동 시작</label>
+    <button class="btn" id="btnReset">처음부터 다시</button>
+    <button class="btn" id="btnSound">소리 켜짐</button>
+  </div>
+</header>
+
+<div class="main">
+  <section class="panel queue">
+    <h3>대기 순서</h3>
+    <ol id="queue"></ol>
+  </section>
+
+  <section class="stage" id="stage">
+    <div class="setup-box" id="setupBox">
+      <h2 id="setupTitle">경매 준비</h2>
+      <p>명단 채우기·팀장·핸디캡·경매 설정·순서는 <b>운영자 콘솔</b>의 ‘경매 준비’ 탭에서 해요. 준비가 끝나면 이 화면에 첫 선수가 올라와요.</p>
+      <div class="row">
+        <a class="btn primary big" id="btnConsole2" style="text-decoration:none">운영자 콘솔에서 준비하기</a>
+        <button class="btn big" id="btnLinks2">팀장 링크</button>
+        <button class="btn big" id="btnDraw">방송용 순서 추첨</button>
+      </div>
+      <div class="row"><button class="btn big" id="btnSignups2">신청 명단 보기</button><button class="btn" id="btnEdit2">선수 관리 (사진·각오)</button></div>
+    </div>
+    <div class="result-box" id="resultBox" hidden>
+      <div class="result-head"><h2>경매 <span>결과</span></h2><button class="btn big" id="btnReveal">결과 발표 다시 보기</button><button class="btn gold big" id="btnXlsx">엑셀로 내려받기</button><button class="btn big" id="btnPng">이미지로 저장</button><span class="state-line" id="resultNote"></span></div>
+      <div id="resultBody"></div>
+    </div>
+    <div id="lotLeft">
+      <div class="card-label">NOW ON AUCTION</div>
+      <div class="p-top">
+        <div id="pPhoto"></div>
+        <div>
+          <div class="p-name" data-fit><span id="pGrade"></span><span id="pName">-</span></div>
+          <span class="p-pos" id="pPos">-</span>
+          <div class="p-agents" id="pAgents"></div>
+        </div>
+      </div>
+      <div class="p-motto" id="pMotto"></div>
+      <div class="p-tiers">
+        <div><small>최고 티어</small><b id="pPeak">-</b></div>
+        <div><small>현재 티어</small><b id="pCur">-</b></div>
+        <div class="score"><small>티어 점수</small><b id="pScore">-</b></div>
+      </div>
+      <div class="p-unsold" id="pUnsold"></div>
+    </div>
+    <div class="bidbox" id="lotRight">
+      <div class="bid-now">
+        <small>현재 최고가</small>
+        <div class="bid-amount" id="bidAmount">0</div>
+        <div class="bid-leader" id="bidLeader" data-fit>아직 입찰 없음</div>
+      </div>
+      <div class="timer">
+        <small>남은 시간</small>
+        <div><span class="timer-num" id="timerNum">-</span><span class="timer-plus" id="timerPlus">+5</span></div>
+        <div class="bar"><i id="timerBar"></i></div>
+      </div>
+      <div class="state-line" id="stateLine"></div>
+    </div>
+  </section>
+
+  <div class="side">
+    <section class="chat" id="chat"></section>
+    <section class="panel log">
+      <h3>진행 기록</h3>
+      <ul id="log"></ul>
+    </section>
+  </div>
+</div>
+
+<section class="teams" id="teams"></section>
+</div>
+
+<!-- 팀장 링크 창 -->
+<div class="overlay" id="linksOverlay">
+  <div class="links">
+    <h2>링크</h2>
+    <p>팀장 링크는 팀마다 다릅니다. 각 팀장에게 <b>자기 팀 링크만</b> 개인 메시지로 보내 주세요. 링크를 가진 사람은 그 팀으로 입찰할 수 있어요.</p>
+    <div><button class="btn primary" id="btnCopyTeams">팀장 링크 한 번에 복사</button> <span style="color:var(--muted);font-size:13px">“팀장 이름: 링크” 형태로 모든 팀장 링크가 복사돼요.</span></div>
+    <div id="linkRows"></div>
+    <p style="font-size:13px">방송 화면은 보기만 되는 링크예요. OBS에서 ‘소스 추가 → 브라우저’에 붙여 넣고 너비 1920, 높이 1080으로 두세요.</p>
+    <p class="warn">진행자 링크는 이 경매를 조작하는 열쇠입니다. 즐겨찾기에 저장하고 다른 사람에게 보내지 마세요.</p>
+    <div class="draw-ctrl"><button class="btn primary" id="btnLinksClose">닫기</button></div>
+  </div>
+</div>
+
+<!-- 참가 신청 명단 -->
+<div class="overlay" id="signupOverlay">
+  <div class="links">
+    <h2>참가 신청 명단 <span id="signupCount2" style="color:var(--gold)">0</span>명</h2>
+    <p>아래 신청 링크를 디스코드 서버에 올리면, 참가자가 디스코드로 로그인해서 신청합니다. 새 신청은 이 명단에 바로 올라옵니다.</p>
+    <div class="link-row" style="--c:#5865f2"><b>참가 신청 링크</b><input readonly id="signupLink"><button class="btn" data-copy>복사</button></div>
+    <div class="signup-table-wrap">
+      <table class="signup-table">
+        <thead><tr><th>팀장</th><th>#</th><th>디스코드</th><th>게임 닉네임</th><th>최고 티어</th><th>현재 티어</th><th>포지션</th><th>점수</th><th>신청 시각</th></tr></thead>
+        <tbody id="signupRows"></tbody>
+      </table>
+    </div>
+    <p style="font-size:13px">팀장 지정·명단 채우기·점수 고치기는 운영자 콘솔에서 해요.</p>
+    <div class="draw-ctrl"><button class="btn primary" id="btnSignupsClose">닫기</button></div>
+  </div>
+</div>
+
+<!-- 경매 순서 뽑기 화면 -->
+<div class="overlay" id="drawOverlay">
+  <div class="draw">
+    <h2>경매 순서 <span>추첨</span></h2>
+    <div class="roulette" id="roulette">
+      <div class="pick-no" id="rNo">1번</div>
+      <div id="rPhoto"></div>
+      <div class="r-name" id="rName" data-fit>-</div>
+      <div class="r-sub" id="rSub"></div>
+    </div>
+    <ol class="order-list" id="orderList"></ol>
+    <div class="draw-ctrl">
+      <button class="btn" id="btnSkipDraw">건너뛰기</button>
+      <button class="btn primary big" id="btnDrawDone" disabled>이 순서로 경매 시작</button>
+    </div>
+  </div>
+</div>
+
+<!-- 선수 관리 화면 -->
+<div class="overlay" id="editOverlay">
+  <div class="editor">
+    <div class="editor-head">
+      <h2>선수 관리</h2>
+      <span class="cap-count" id="capCount"></span>
+      <div class="spacer"></div>
+      <button class="btn" id="btnEdDefault">기본값으로 되돌리기</button>
+      <button class="btn" id="btnEdCancel">닫기</button>
+      <button class="btn primary" id="btnEdSave">저장</button>
+    </div>
+    <div class="ed-grid" id="edGrid"></div>
+  </div>
+</div>
+
+<div class="flash" id="flash"><div class="flash-inner"><div id="flashPhoto"></div><div class="flash-title" id="flashTitle">SOLD</div><div class="flash-sub" id="flashSub" data-fit></div></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js?v=dev"></script>
+<script src="common.js?v=dev"></script>
+<script>
+/* =====================================================================
+   진행자 화면
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const SAVED_KEY = "valo-auction-hosts-v1";
+let net = null, S = null, lastSeq = null, online = new Set(), prevLot = null;
+
+function savedHosts() { try { return JSON.parse(localStorage.getItem(SAVED_KEY) || "[]"); } catch (e) { return []; } }
+function rememberHost(id, key) {
+  try {
+    const list = savedHosts().filter(x => x.id !== id);
+    list.unshift({ id, key, at: Date.now() });
+    localStorage.setItem(SAVED_KEY, JSON.stringify(list.slice(0, 10)));
+  } catch (e) { /* 저장이 막혀도 링크는 URL에 있음 */ }
+}
+function pageUrl(file, id, key) {
+  const u = new URL(file, location.href);
+  u.search = new URLSearchParams({ a: id, k: key }).toString();
+  u.hash = "";
+  return u.toString();
+}
+
+/* ---------- 시작 ---------- */
+async function boot() {
+  const { id, key } = linkParams();
+  if (!isConfigured()) {
+    showLanding();
+    $("btnCreate").disabled = true; $("landingMsg").hidden = false;
+    $("landingMsg").innerHTML = "아직 Supabase 연결 정보가 없어요. <b>config.js</b>에 두 값을 넣으면 온라인 경매를 만들 수 있습니다. 그 전까지는 혼자 연습판을 쓸 수 있어요.";
+    return;
+  }
+  if (!id || !key) return showLanding();
+  const sb = window.supabase.createClient(AUCTION_CONFIG.supabaseUrl, AUCTION_CONFIG.supabaseKey, { auth: { persistSession: false } });
+  const { data: who, error } = await sb.rpc("whoami", { p_id: id, p_key: key });
+  if (error || !who || who.role !== "host") {
+    showLanding(); $("landingMsg").hidden = false;
+    $("landingMsg").textContent = error ? "서버에 연결하지 못했어요. 잠시 뒤 새로고침해 주세요." : "진행자 링크가 올바르지 않아요. 운영자 콘솔의 ‘링크’ 탭에서 다시 복사해 주세요.";
+    return;
+  }
+  rememberHost(id, key);
+  $("btnConsole").href = $("btnConsole2").href = new URL("admin.html", location.href).toString() + "?" + new URLSearchParams({ claim: id, k: key });
+  $("app").hidden = false;
+  let chat = null;
+  net = connect({
+    id, key, presenceKey: "host", presenceInfo: { role: "host" },
+    onState, onChat: msgs => chat && chat.add(msgs), onChatUpdate: m => chat && chat.update(m), onConn: setConn,
+    onPresence: st => { online = new Set(Object.keys(st)); if (S) render(); },
+  });
+  chat = mountChat($("chat"), net, { storeKey: "valo-chat-host", canHide: true });
+  startSignups();
+  if (new URLSearchParams(location.search).get("new") === "1") {
+    history.replaceState(null, "", pageUrl("index.html", id, key));
+    openLinks();
+  }
+}
+
+function showLanding() {
+  $("landing").hidden = false;
+  $("homeNotice").textContent = RIOT_NOTICE;
+  const list = savedHosts();
+  if (!list.length) return;
+  $("savedBox").hidden = false;
+  const LABEL = { setup: "준비 중", ready: "시작 대기", running: "경매 중", paused: "일시정지", result: "경매 중", done: "끝남" };
+  $("savedList").innerHTML = list.map((x, i) => `<li data-i="${i}"><a href="${esc(pageUrl("index.html", x.id, x.key))}"><b>진행자 화면</b><span>${new Date(x.at).toLocaleDateString("ko-KR")}에 연 경매</span><em>열기</em></a></li>`).join("");
+  if (!isConfigured()) return;
+  // 회차 이름·상태를 서버에서 가져와 채움 (못 가져와도 날짜로 보임)
+  const sb = window.supabase.createClient(AUCTION_CONFIG.supabaseUrl, AUCTION_CONFIG.supabaseKey, { auth: { persistSession: false } });
+  list.forEach((x, i) => sb.rpc("get_state", { p_id: x.id, p_key: x.key }).then(({ data }) => {
+    const li = $("savedList").querySelector(`[data-i="${i}"]`); if (!li) return;
+    if (!data) { li.classList.add("gone"); li.querySelector("span").textContent = "없어진 경매 (지워졌거나 링크가 바뀜)"; return; }
+    li.querySelector("b").textContent = data.title || "제목 없는 경매";
+    li.querySelector("span").textContent = `${LABEL[data.status] || data.status} · 팀 ${data.teams.length}개 · ${new Date(x.at).toLocaleDateString("ko-KR")}`;
+  }).catch(() => {}));
+}
+
+$("btnCreate").addEventListener("click", async () => {
+  $("btnCreate").disabled = true;
+  const sb = window.supabase.createClient(AUCTION_CONFIG.supabaseUrl, AUCTION_CONFIG.supabaseKey, { auth: { persistSession: false } });
+  const profiles = localProfiles().map(({ unsold, ...p }) => p);
+  const { data, error } = await sb.rpc("create_auction", { p_config: CONFIG, p_players: profiles });
+  if (error || !data || !data.ok) {
+    $("btnCreate").disabled = false;
+    return toast(error ? `만들지 못했어요: ${error.message}` : data.reason);
+  }
+  rememberHost(data.id, data.host_key);
+  location.href = pageUrl("index.html", data.id, data.host_key) + "&new=1";
+});
+
+function setConn(status) {
+  const el = $("conn");
+  const on = status === "SUBSCRIBED";
+  el.className = "conn " + (on ? "on" : "off");
+  el.textContent = on ? "실시간 연결됨" : "다시 연결 중…";
+}
+
+/* ---------- 서버 상태가 바뀔 때 ---------- */
+function onState(s) {
+  const prev = S;
+  S = s;
+  setScoreConfig(s.config);
+  soundForState(prev, s);
+  if (lastSeq === null) lastSeq = s.last_result ? s.last_result.seq : 0;
+  else if (s.last_result && s.last_result.seq > lastSeq) { lastSeq = s.last_result.seq; flashResult(s); }
+  // 입찰로 늘어난 시간 보여 주기
+  if (prev && s.status === "running" && prev.status === "running" && s.current === prev.current && s.bid_amount !== prev.bid_amount) {
+    bumpEl($("bidAmount"), "bump");
+    const plus = $("timerPlus");
+    plus.textContent = `+${Math.max(0, (s.ends_at - prev.ends_at) / 1000).toFixed(1)}`;
+    bumpEl(plus, "show");
+    if (s.bid_team !== null) bumpEl(document.querySelector(`.team[data-id="${s.bid_team}"]`), "pulse");
+  }
+  if (!prev || prev.teams.length !== s.teams.length || prev.players_version !== s.players_version
+      || prev.teams.some((t, i) => !s.teams[i] || t.name !== s.teams[i].name || t.color !== s.teams[i].color)) buildTeams();
+  render(prev);
+
+}
+
+/* ---------- 조작 버튼 ---------- */
+async function host(action, arg) {
+  const r = await net.act("host_action", { p_action: action, p_arg: arg === undefined ? null : arg });
+  if (r && !r.ok) toast(r.reason);
+  return r;
+}
+function startOrResume() {
+  if (!S) return;
+  if (S.status === "ready") host("start");
+  else if (S.status === "paused") host("resume");
+}
+let resultSig = "", revealed = false, sawRunning = false;   // 이 화면에서 경매가 끝나는 순간을 봤을 때만 자동으로 발표 연출
+$("btnReveal").addEventListener("click", () => playResultReveal($("resultBody")));
+$("btnStart").addEventListener("click", startOrResume);
+$("btnXlsx").addEventListener("click", () => {
+  const kind = downloadResultXlsx(S, S.title);
+  $("resultNote").textContent = kind === "xlsx" ? "엑셀 파일을 내려받았어요." : "엑셀 도구를 못 불러와서 CSV 파일(엑셀에서 열림)로 내려받았어요.";
+});
+$("btnPause").addEventListener("click", () => host("pause"));
+$("btnUndo").addEventListener("click", () => {
+  const p = S && S.players.find(x => x.id === S.undo_player);
+  const cur = S && ["running", "paused"].includes(S.status) && S.bid_team !== null ? S.players.find(x => x.id === S.current) : null;
+  if (confirm(`${p ? p.name : "가장 최근 선수"}의 결과를 취소하고 다시 경매할까요? (포인트·유찰 횟수도 돌려놔요)${cur ? `\n\n지금 경매 중인 ${cur.name}의 입찰(${S.bid_amount}P)도 취소되고, 대기 순서 맨 앞으로 돌아가요.` : ""}\n\n한 번 더 누르면 그 전 결과도 차례로 되돌릴 수 있어요.`)) host("undo");
+});
+$("btnPng").addEventListener("click", async () => {
+  $("btnPng").disabled = true;
+  try { await saveResultImage(S, S.title); $("resultNote").textContent = "결과 이미지를 저장했어요."; }
+  catch (e) { $("resultNote").textContent = "이미지를 만들지 못했어요. 새로고침 뒤 다시 눌러 주세요."; }
+  $("btnPng").disabled = false;
+});
+$("btnHammer").addEventListener("click", () => host("hammer"));
+$("btnNext").addEventListener("click", () => host("next"));
+$("autoNext").addEventListener("change", e => host("auto", e.target.checked));
+$("btnReset").addEventListener("click", () => {
+  if (confirm("처음부터 다시 시작할까요? 경매 결과가 지워집니다. (선수 정보, 사진, 팀장 링크, 채팅은 그대로)")) host("reset");
+});
+document.addEventListener("keydown", e => {
+  if (e.code !== "Space" || /INPUT|SELECT|TEXTAREA|BUTTON/.test(e.target.tagName)) return;
+  if (document.querySelector(".overlay.show") || !S) return;
+  e.preventDefault();
+  if (S.status === "running") host("pause"); else startOrResume();
+});
+
+/* ---------- 팀장 링크 ---------- */
+async function openLinks() {
+  const { id, key } = linkParams();
+  let links;
+  try { links = await net.rpc("get_links"); } catch (e) { return toast("링크를 불러오지 못했어요."); }
+  if (Array.isArray(links)) links = { teams: links };     // 예전 setup.sql(팀장 링크 목록만 돌려줌)과도 맞게
+  const rows = [`<div class="link-row"><b>진행자 (나)</b><input readonly value="${esc(pageUrl("index.html", id, key))}"><button class="btn" data-copy>복사</button></div>`];
+  if (links && links.screen) rows.push(`<div class="link-row" style="--c:var(--gold)"><b>방송 화면 (OBS)</b><input readonly value="${esc(pageUrl("screen.html", id, links.screen))}"><button class="btn" data-copy>복사</button></div>`);
+  if (links && links.signup_code) rows.push(`<div class="link-row" style="--c:#5865f2"><b>참가 신청 (공개용)</b><input readonly value="${esc(signupUrl(links.signup_code))}"><button class="btn" data-copy>복사</button></div>`);
+  ((links && links.teams) || []).forEach((k, i) => {
+    const t = S && S.teams[i];
+    if (S && S.teams.length && !t) return;
+    rows.push(`<div class="link-row" style="--c:${esc(t ? t.color : "")}"><b>${esc(t ? captainLabel(S, t.idx) : `팀장 ${i + 1}팀`)}</b><input readonly value="${esc(pageUrl("team.html", id, k))}"><button class="btn" data-copy>복사</button></div>`);
+  });
+  $("linkRows").innerHTML = rows.join("");
+  $("linksOverlay").classList.add("show");
+}
+async function copyRow(e) {
+  if (!e.target.matches("[data-copy]")) return;
+  const input = e.target.parentElement.querySelector("input");
+  try { await navigator.clipboard.writeText(input.value); }
+  catch (err) { input.select(); document.execCommand("copy"); }
+  e.target.textContent = "복사됨";
+  setTimeout(() => (e.target.textContent = "복사"), 1500);
+}
+$("linkRows").addEventListener("click", copyRow);
+$("btnCopyTeams").addEventListener("click", async () => {
+  const text = [...$("linkRows").querySelectorAll(".link-row")].filter(r => r.querySelector("input").value.includes("team.html"))
+    .map(r => `${r.querySelector("b").textContent}: ${r.querySelector("input").value}`).join("\n");
+  if (!text) return toast("팀장 링크가 없어요. 먼저 신청 명단으로 선수를 채워 주세요.");
+  try { await navigator.clipboard.writeText(text); }
+  catch (err) { const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
+  $("btnCopyTeams").textContent = "복사됨!"; setTimeout(() => ($("btnCopyTeams").textContent = "팀장 링크 한 번에 복사"), 1500);
+});
+$("signupOverlay").addEventListener("click", copyRow);
+$("btnLinks").addEventListener("click", openLinks);
+$("btnLinks2").addEventListener("click", openLinks);
+$("btnLinksClose").addEventListener("click", () => $("linksOverlay").classList.remove("show"));
+
+/* ---------- 참가 신청 명단 (디스코드 로그인 신청) ---------- */
+let signups = [], signupCode = null, signupsLoaded = false;
+function signupUrl(code) {
+  const u = new URL("signup.html", location.href);
+  u.search = new URLSearchParams({ s: code }).toString(); u.hash = "";
+  return u.toString();
+}
+async function startSignups() {
+  try {
+    const links = await net.rpc("get_links");
+    signupCode = links && !Array.isArray(links) ? links.signup_code : null;
+  } catch (e) { /* 다음 확인 때 */ }
+  if (signupCode) {
+    $("signupLink").value = signupUrl(signupCode);
+    // 신청 화면이 보내는 "새 신청" 신호를 받으면 바로 명단을 다시 불러옴
+    net.sb.channel(`signup-${signupCode}`, { config: { broadcast: { self: false } } })
+      .on("broadcast", { event: "new" }, () => loadSignups())
+      .subscribe(status => { if (status === "SUBSCRIBED") loadSignups(); });
+  }
+  loadSignups();
+  setInterval(loadSignups, 5000);     // 신호를 놓쳐도 5초 안에 따라잡음
+}
+async function loadSignups() {
+  let list;
+  try { list = await net.rpc("get_signups"); } catch (e) { return; }
+  if (!Array.isArray(list)) return;
+  const known = new Set(signups.map(x => x.id));
+  const fresh = list.filter(x => !known.has(x.id));
+  signups = list;
+  if (signupsLoaded && fresh.length) {
+    const f = fresh[fresh.length - 1];
+    toast(`새 신청: ${f.nick} (${f.discord_name})`);
+    bumpEl($("btnSignups"), "pulse");
+  }
+  signupsLoaded = true;
+  renderSignups(new Set(fresh.map(x => x.id)));
+}
+function renderSignups(freshIds = new Set()) {
+  $("signupCount").textContent = signups.length;
+  $("signupCount2").textContent = signups.length;
+  $("signupRows").innerHTML = signups.length ? signups.map((x, i) => `
+    <tr class="${freshIds.has(x.id) ? "fresh" : ""} ${x.captain ? "cap" : ""}">
+      <td>${x.captain ? "★" : ""}</td><td>${i + 1}</td>
+      <td><span class="dc">${x.discord_avatar ? `<img src="${esc(x.discord_avatar)}" alt="">` : avatar({ name: x.discord_name }, 26)}<span><b>${esc(x.discord_name)}</b>${x.discord_username ? `<small>@${esc(x.discord_username)}</small>` : ""}</span></span></td>
+      <td><b>${esc(x.nick)}</b></td><td>${esc(x.peak)}</td><td>${esc(x.current)}</td><td>${esc(x.pos)}</td>
+      <td class="sc">${playerScore(x).toFixed(1)}${x.score != null ? `<span class="over">직접 정함</span>` : ""}</td>
+      <td class="tm">${new Date(x.at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+    </tr>`).join("") : `<tr><td colspan="9" style="color:var(--muted);text-align:center;padding:24px">아직 신청이 없어요. 신청 링크를 디스코드 서버에 올려 주세요.</td></tr>`;
+}
+function openSignups() { $("signupOverlay").classList.add("show"); loadSignups(); }
+$("btnSignups").addEventListener("click", openSignups);
+$("btnSignups2").addEventListener("click", openSignups);
+$("btnSignupsClose").addEventListener("click", () => $("signupOverlay").classList.remove("show"));
+
+/* ---------- 경매 순서 뽑기 (진행자 화면에서 추첨 연출 → 결과를 서버에 저장) ---------- */
+let drawOrder = [], drawIndex = 0, drawTimer = null;
+
+function startDraw() {
+  if (!S || S.status !== "setup") return;
+  drawOrder = S.queue.map(id => S.players.find(p => p.id === id));
+  for (let i = drawOrder.length - 1; i > 0; i--) {     // 피셔-예이츠 섞기
+    const j = Math.floor(Math.random() * (i + 1));
+    [drawOrder[i], drawOrder[j]] = [drawOrder[j], drawOrder[i]];
+  }
+  drawIndex = 0;
+  $("orderList").innerHTML = "";
+  $("btnDrawDone").disabled = true;
+  $("btnSkipDraw").disabled = false;
+  $("drawOverlay").classList.add("show");
+  net.show({ kind: "draw", order: drawOrder.map(p => p.id) });   // 방송 화면에서도 같은 순서로 추첨 연출
+  stepDraw();
+}
+function showRoulette(p, locked, no) {
+  $("roulette").classList.toggle("locked", locked);
+  $("rNo").textContent = `${no}번`;
+  $("rPhoto").innerHTML = avatar(p, 150);
+  $("rName").textContent = p.name;
+  $("rSub").textContent = locked ? `${p.grade ? p.grade + "티어 · " : ""}${p.pos} · ${p.peak} / ${p.current}` : "";
+}
+function appendOrder(i, p) {
+  const li = document.createElement("li");
+  li.innerHTML = `<b>${i + 1}</b>${avatar(p, 32)}<span>${gradeBadge(p, "sm")}${esc(p.name)}</span>`;
+  $("orderList").appendChild(li);
+}
+function stepDraw() {
+  if (drawIndex >= drawOrder.length) return finishDraw();
+  const remaining = drawOrder.slice(drawIndex);
+  let spins = 0;
+  const totalSpins = remaining.length > 1 ? 7 : 0;
+  const spin = () => {
+    if (spins < totalSpins) {
+      showRoulette(remaining[Math.floor(Math.random() * remaining.length)], false, drawIndex + 1);
+      SFX.spin(); spins++;
+      drawTimer = setTimeout(spin, 35 + spins * 12);
+    } else {
+      showRoulette(drawOrder[drawIndex], true, drawIndex + 1); SFX.lock();
+      appendOrder(drawIndex, drawOrder[drawIndex]);
+      drawIndex++;
+      drawTimer = setTimeout(stepDraw, 380);
+    }
+  };
+  spin();
+}
+function skipDraw() {
+  clearTimeout(drawTimer);
+  net.show({ kind: "draw-skip" });
+  while (drawIndex < drawOrder.length) { appendOrder(drawIndex, drawOrder[drawIndex]); drawIndex++; }
+  finishDraw();
+}
+function finishDraw() {
+  clearTimeout(drawTimer);
+  $("rNo").textContent = "추첨 완료";
+  $("btnSkipDraw").disabled = true;
+  $("btnDrawDone").disabled = false;
+}
+$("btnDraw").addEventListener("click", startDraw);
+$("btnSkipDraw").addEventListener("click", skipDraw);
+$("btnDrawDone").addEventListener("click", async () => {
+  $("btnDrawDone").disabled = true;
+  const r = await host("set_order", drawOrder.map(p => p.id));
+  if (r && r.ok) $("drawOverlay").classList.remove("show");
+  else $("btnDrawDone").disabled = false;
+});
+
+/* ---------- 선수 관리 (사진, 각오 한마디, 티어, 포지션, 팀장) ---------- */
+let draft = [];
+function openEditor() {
+  if (!S || S.status !== "setup") return toast("경매 중에는 고칠 수 없어요. ‘처음부터 다시’를 누른 뒤 고쳐 주세요.");
+  draft = S.players.map(p => ({ name: p.name, peak: p.peak, current: p.current, pos: p.pos, captain: p.captain, motto: p.motto, photo: p.photo || "", signup_id: p.signup_id, score: p.score, agents: agentsOf(p), grade: p.grade || null }));
+  buildEditor();
+  $("editOverlay").classList.add("show");
+}
+function closeEditor() { $("editOverlay").classList.remove("show"); }
+function tierOptions(selected) {
+  return TIER_OPTIONS.map(t => `<option ${t === selected ? "selected" : ""}>${t}</option>`).join("");
+}
+function buildEditor() {
+  $("edGrid").innerHTML = draft.map((p, i) => `
+    <div class="ed ${p.captain ? "captain" : ""}" data-i="${i}">
+      <div class="ed-photo">
+        <label>${avatar(p, 84)}<input type="file" accept="image/*"></label>
+        <button type="button" data-act="clearPhoto">사진 지우기</button>
+      </div>
+      <div class="ed-fields">
+        <input data-f="name" maxlength="16" value="${esc(p.name)}" placeholder="닉네임">
+        <div class="row2">
+          <div><small>최고 티어</small><select data-f="peak">${tierOptions(p.peak)}</select></div>
+          <div><small>현재 티어</small><select data-f="current">${tierOptions(p.current)}</select></div>
+        </div>
+        <div class="row2">
+          <div data-posfor="${i}"></div>
+          <label class="ed-cap"><input type="checkbox" data-f="captain" ${p.captain ? "checked" : ""}> 팀장</label>
+        </div>
+        <input data-f="motto" maxlength="${CONFIG.mottoMaxLength}" value="${esc(p.motto || "")}" placeholder="각오 한마디 (${CONFIG.mottoMaxLength}자까지)">
+      </div>
+    </div>`).join("");
+  $("edGrid").querySelectorAll("[data-posfor]").forEach(el => { const d = draft[el.dataset.posfor]; mountPosPicker(el, d.pos, v => { d.pos = v; }); });   // 포지션 여러 개
+  updateCapCount();
+}
+function updateCapCount() {
+  const n = draft.filter(p => p.captain).length, need = S ? S.config.teamCount : CONFIG.teamCount;
+  const el = $("capCount");
+  el.textContent = `팀장 ${n} / ${need}명 · 전체 ${draft.length}명`;
+  el.className = "cap-count " + (n === need ? "good" : "bad");
+}
+$("edGrid").addEventListener("input", e => {
+  const card = e.target.closest(".ed"); if (!card) return;
+  const p = draft[card.dataset.i], f = e.target.dataset.f;
+  if (f === "captain") { p.captain = e.target.checked; card.classList.toggle("captain", p.captain); updateCapCount(); }
+  else if (f) p[f] = e.target.value;
+});
+$("edGrid").addEventListener("change", e => {
+  if (e.target.type !== "file" || !e.target.files[0]) return;
+  const card = e.target.closest(".ed"), p = draft[card.dataset.i];
+  resizePhoto(e.target.files[0]).then(url => {
+    p.photo = url;
+    card.querySelector(".ed-photo label").innerHTML = `${avatar(p, 84)}<input type="file" accept="image/*">`;
+  }).catch(() => toast("사진을 읽지 못했어요. 다른 사진으로 해 보세요."));
+});
+$("edGrid").addEventListener("click", e => {
+  if (e.target.dataset.act !== "clearPhoto") return;
+  const card = e.target.closest(".ed"), p = draft[card.dataset.i];
+  p.photo = "";
+  card.querySelector(".ed-photo label").innerHTML = `${avatar(p, 84)}<input type="file" accept="image/*">`;
+});
+function resizePhoto(file) {     // 가운데 기준 정사각형으로 잘라 작게 줄임
+  return new Promise((resolve, reject) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = CONFIG.photoSize, side = Math.min(img.width, img.height);
+      const c = document.createElement("canvas"); c.width = c.height = s;
+      c.getContext("2d").drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, s, s);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(); };
+    img.src = url;
+  });
+}
+$("btnEdit").addEventListener("click", openEditor);
+$("btnEdit2").addEventListener("click", openEditor);
+$("btnEdCancel").addEventListener("click", closeEditor);
+$("btnEdDefault").addEventListener("click", () => {
+  if (!confirm("가짜 선수 25명 기본값으로 되돌릴까요? (저장을 눌러야 반영됩니다)")) return;
+  draft = seedProfiles();
+  buildEditor();
+});
+$("btnEdSave").addEventListener("click", async () => {
+  if (draft.some(p => !posList(p.pos).length)) return toast("포지션을 고르지 않은 선수가 있어요.");
+  const payload = draft.map(p => ({ ...p, name: p.name.trim(), motto: (p.motto || "").trim() }));
+  $("btnEdSave").disabled = true;
+  const r = await host("set_players", payload);
+  $("btnEdSave").disabled = false;
+  if (r && r.ok) closeEditor();
+});
+
+/* ---------- 화면 그리기 ---------- */
+function buildTeams() {
+  const wrap = $("teams");
+  wrap.innerHTML = "";
+  wrap.style.setProperty("--tn", Math.max(1, S.teams.length));   // 6팀이어도 한 줄에
+  wrap.classList.toggle("many", S.teams.length >= 6);
+  for (const t of S.teams) {
+    const el = document.createElement("div");
+    el.className = "team";
+    el.dataset.id = t.idx;
+    el.style.setProperty("--c", t.color);
+    el.innerHTML = `
+      <div class="team-head"><div class="team-name"><span class="dot" data-k="online" title="팀장 접속 여부"></span><span data-fit>${esc(t.name)}</span></div><div class="team-slots">빈자리 <b data-k="slots"></b></div></div>
+      <div class="team-points" data-k="points"></div>
+      <div class="team-max" data-k="max"></div>
+      <div class="team-score">
+        <div><small>티어 점수 합계</small><b data-k="sum"></b></div>
+        <div><small>티어 점수 평균</small><b data-k="avg"></b></div>
+      </div>
+      <ul class="roster" data-k="roster"></ul>`;
+    wrap.appendChild(el);
+  }
+}
+
+function render(prev) {
+  const s = S;
+  const setup = s.status === "setup";
+  $("setupBox").style.display = setup ? "" : "none";
+  $("setupTitle").textContent = s.players.length ? `팀장 ${s.teams.length}명 · 경매 선수 ${s.queue.length}명` : "아직 선수가 없어요";
+  $("lotLeft").style.display = setup ? "none" : "";
+  $("lotRight").style.display = setup ? "none" : "";
+  // 경매가 끝나면 결과 화면
+  const done = s.status === "done";
+  $("resultBox").hidden = !done;
+  if (done) {
+    $("lotLeft").style.display = "none"; $("lotRight").style.display = "none";
+    const sig = JSON.stringify(s.teams) + s.players.map(x => `${x.id}:${x.team}:${x.score}:${x.peak}:${x.current}`).join();
+    if (sig !== resultSig) {                 // 결과가 바뀔 때만 다시 그림 (연출이 끊기지 않게)
+      resultSig = sig;
+      const willReveal = sawRunning && !revealed;
+      $("resultBody").innerHTML = resultHtml(s, { reveal: willReveal });   // 연출할 때는 처음부터 카드를 숨겨 둠 (깜빡임 방지)
+      if (willReveal) { revealed = true; setTimeout(() => playResultReveal($("resultBody")), (s.config.resultShowMs || 2200) + 200); }
+    }
+  } else { resultSig = ""; revealed = false; if (!setup) sawRunning = true; }   // 되돌리기로 경매가 다시 열리면 다음에 또 발표 연출
+
+  const p = s.players.find(x => x.id === s.current) || null;
+  $("pPhoto").innerHTML = p ? avatar(p, 130) : "";
+  $("pName").textContent = p ? p.name : (s.status === "done" ? "경매 종료" : "-");
+  $("pName").parentElement.style.setProperty("--ns", p ? nameScale(p.name) : 1);
+  $("pGrade").innerHTML = p ? gradeBadge(p, "lg") : "";
+  $("pPos").textContent = p ? p.pos : "-";
+  $("pAgents").innerHTML = p ? agentChips(p, "lg", 26) : "";
+  $("pMotto").textContent = p && p.motto ? `“${p.motto}”` : "";
+  $("pPeak").innerHTML = p ? `${esc(p.peak)} <em>${tierPoints(p.peak)}점</em>` : "-";
+  $("pCur").innerHTML = p ? `${esc(p.current)} <em>${tierPoints(p.current)}점</em>` : "-";
+  $("pScore").textContent = p ? playerScore(p).toFixed(1) : "-";
+  $("pUnsold").textContent = p && p.unsold ? `이미 ${p.unsold}번 유찰된 선수 — 이번에도 유찰되면 빈자리 팀에 무작위 배정` : "";
+
+  $("bidAmount").textContent = s.bid_amount;
+  const leader = $("bidLeader");
+  if (s.bid_team !== null) { leader.textContent = `${s.teams[s.bid_team].name} 최고가`; leader.style.color = s.teams[s.bid_team].color; }
+  else { leader.textContent = "아직 입찰 없음"; leader.style.color = ""; }
+
+  const c = s.config;
+  const msg = { setup: "", ready: "‘경매 시작’을 누르면 시간이 흐릅니다.", running: `입찰할 때마다 +${c.bidAddSeconds}초 (최대 ${c.maxSeconds}초)`, paused: "일시정지 중", result: "결과 발표 중…", done: "경매 완료" };
+  $("stateLine").textContent = msg[s.status] || "";
+  $("btnEdit").disabled = !setup;
+  $("btnStart").disabled = !(s.status === "ready" || s.status === "paused");
+  $("btnStart").textContent = s.status === "paused" ? "다시 진행 (Space)" : "경매 시작 (Space)";
+  $("btnPause").disabled = s.status !== "running";
+  $("btnHammer").disabled = !(s.status === "running" || s.status === "paused");
+  $("btnNext").disabled = s.status !== "result";
+  $("btnUndo").disabled = !s.can_undo;
+  $("btnUndo").textContent = s.undo_count ? `결과 되돌리기 (${s.undo_count})` : "결과 되돌리기";
+  $("autoNext").checked = s.auto_start;
+  const filled = s.players.filter(x => x.team !== null).length;
+  $("progress").textContent = `자리 ${filled} / ${s.teams.length * c.teamSize}`;
+
+  const queue = s.queue.map(id => s.players.find(x => x.id === id)).filter(Boolean);
+  $("queue").innerHTML = queue.length
+    ? queue.map((q, i) => `<li><span class="n">${setup ? "·" : i + 1}</span>${avatar(q, 24)}<span class="nm">${gradeBadge(q, "sm")}${esc(q.name)}</span>${q.unsold ? `<span class="tag-unsold">유찰 ${q.unsold}</span>` : ""}<span>${playerScore(q).toFixed(1)}</span></li>`).join("")
+    : `<li><span class="nm" style="color:var(--muted)">대기 선수 없음</span></li>`;
+
+  $("log").innerHTML = eventsHtml(s.events);
+
+  for (const t of s.teams) {
+    const el = document.querySelector(`.team[data-id="${t.idx}"]`); if (!el) continue;
+    const roster = rosterOf(s, t.idx), { sum, avg } = teamScore(roster), open = c.teamSize - roster.length;
+    el.querySelector('[data-k="online"]').classList.toggle("on", online.has(`team-${t.idx}`));
+    el.querySelector('[data-k="slots"]').textContent = `${open} / ${c.teamSize}`;
+    const pts = el.querySelector('[data-k="points"]');
+    const oldPts = prev && prev.teams[t.idx] ? prev.teams[t.idx].points : t.points;
+    pts.innerHTML = `${t.points}<small>P 남음</small>`;
+    if (oldPts !== t.points) bumpEl(pts, "changed");
+    el.querySelector('[data-k="max"]').innerHTML = open > 0
+      ? `최대 입찰 가능 <b>${maxBid(s, t)}P</b>${open > 1 ? ` · 빈자리 몫 ${c.reservePerSlot * (open - 1)}P 보관` : ""}` : "팀 완성";
+    el.querySelector('[data-k="sum"]').textContent = sum.toFixed(1);
+    el.querySelector('[data-k="avg"]').textContent = avg === null ? "-" : avg.toFixed(1);
+    const rows = tierSlots(s, t.idx).map(({ p: r, grade }) => r ? `<li><span class="who">${avatar(r, 22)}<span data-fit="9">${gradeBadge(r, "sm")}${esc(r.name)}<span class="psc"> ${playerScore(r).toFixed(1)}</span></span></span>${
+      priceTag(r)}</li>` : `<li class="empty">${emptySlotLabel(grade)}</li>`);
+    el.querySelector('[data-k="roster"]').innerHTML = rows.join("");
+    el.classList.toggle("leading", s.bid_team === t.idx && s.status === "running");
+  }
+}
+
+const tickSound = countdownTicker();
+function renderTimer() {
+  if (S) {
+    const left = timeLeftMs(S, net.serverNow());
+    tickSound(S, left);
+    const num = $("timerNum");
+    num.textContent = ["done", "result", "setup"].includes(S.status) ? "-" : (left / 1000).toFixed(1);
+    num.classList.toggle("low", S.status === "running" && left < 5000);
+    $("timerBar").style.width = `${Math.min(100, left / (S.config.maxSeconds * 1000) * 100)}%`;
+  }
+  requestAnimationFrame(renderTimer);
+}
+requestAnimationFrame(renderTimer);
+
+mountSoundToggle($("btnSound"));
+keepScreenOn(() => S && !["setup", "done"].includes(S.status));
+boot();
+</script>
+</body>
+</html>
